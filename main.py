@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @file    : main.py
-@brief   : Runs main controller simulation
+@brief   : Runs lostless analysis
 @date    : 2025/04/29
 @version : 1.0.0
 @author  : Lucas Cortés.
