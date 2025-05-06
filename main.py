@@ -46,14 +46,12 @@ def clear_page(title='Lanek'):
         pass
 
 
-def summary(df, var):
-    summary = df.groupby(var)['ASISTIDO'].value_counts().unstack(fill_value=0)
+def summary(df, sort, var, by):
+    summary = df.groupby(var)[by].value_counts().unstack(fill_value=0)
     summary = summary.rename(columns={True: 'Count_True', False: 'Count_False'})
     summary['True/False Ratio'] = summary['Count_True'] / summary['Count_False'].replace(0, float('nan'))
-    summary['True/Total Ratio'] = summary['Count_True'] / (summary['Count_True'] + summary['Count_False'])
-    summary['False/Total Ratio'] = summary['Count_False'] / (summary['Count_True'] + summary['Count_False'])
-
-    # Optional: reset index to make it easier to export or view
+    summary['True/Total Ratio'] = (summary['Count_True'] / (summary['Count_True'] + summary['Count_False']))*100
+    summary['False/Total Ratio'] = (summary['Count_False'] / (summary['Count_True'] + summary['Count_False']))*100
     summary = summary.reset_index()
 
     #st.write(summary)
@@ -65,14 +63,14 @@ def summary(df, var):
     fig.add_trace(go.Bar(
         x=summary[var],
         y=summary['Count_True'],
-        name='Asiste (True)',
+        name=by,
         #marker_color='green'
     ))
 
     fig.add_trace(go.Bar(
         x=summary[var],
         y=summary['Count_False'],
-        name='No Asiste (False)',
+        name=f'No {by}',
         #marker_color='red'
     ))
 
@@ -80,7 +78,7 @@ def summary(df, var):
     fig.add_trace(go.Scatter(
         x=summary[var],
         y=summary['True/Total Ratio'],
-        name='Ratio Asistencia',
+        name=f'% {by}',
         yaxis='y2',
         mode='lines+markers',
         line=dict(dash='dash')
@@ -90,7 +88,7 @@ def summary(df, var):
     fig.add_trace(go.Scatter(
         x=summary[var],
         y=summary['False/Total Ratio'],
-        name='Ratio Inasistencia',
+        name=f'% no {by}',
         yaxis='y2',
         mode='lines+markers',
         line=dict(dash='dash')
@@ -98,13 +96,13 @@ def summary(df, var):
 
     # --- Layout ---
     fig.update_layout(
-        title=f'Asistencia por {var}',
+        title=f'{sort} ({by}) V/S {var}',
         xaxis=dict(
             title=var,
             tickangle=-30  # Tilt labels by -45 degrees
         ),
         yaxis=dict(title='Cantidad'),
-        yaxis2=dict(title='Ratio Asistencia', overlaying='y', side='right'),
+        yaxis2=dict(title=f'% {by}', overlaying='y', side='right'),
         barmode='group',
         legend=dict(x=0.05, y=0.5),
         height=600,
@@ -113,6 +111,18 @@ def summary(df, var):
 
     st.write(fig)
     #fig.show()
+
+def make_bool(df, sort, by, name):
+    estado = df[sort]
+    asistido = []
+    for i in estado:
+        if i == by:
+            asistido.append(True)
+        else:
+            asistido.append(False)
+    df[name] = asistido
+    return df
+
 
 
 def main():
@@ -131,41 +141,53 @@ def main():
                 df = df.dropna()
                 #st.dataframe(df)
                 try:
-                    uids = list(set(df["ID"]))
+                    uids = df["ID"].unique()
                 except:
-                    aids = list(set(df["ID_PACIENTE"]))
-                    estado = df['ESTADO_ULTIMO']
-                    asistido = []
-                    for i in estado:
-                        if i == "ASISTIDA":
-                            asistido.append(True)
-                        else:
-                            asistido.append(False)
-                    df["ASISTIDO"] = asistido
-                    st.write(df)
-                    summary(df=df, var='ESPACIALIDAD')
-                    summary(df=df, var='MEDIO')
-                    summary(df=df, var='MOTIVO_CONSULTA')
+                    aids = df["ID_PACIENTE"].unique()
                     df['ID_CORRELATIVO'] = pd.factorize(df['ID_DE_PROFESIONAL'])[0]
 
-                    summary(df=df, var='ID_CORRELATIVO')
-                    
+                    cols = []
+                    for col in df.columns.tolist():
+                        if "ID_" not in col:
+                            cols.append(col)
+                    sort = st.selectbox(
+                        "Sort column",
+                        cols,
+                    )
+                    cols2 = [x for x in cols if x != sort]
+                    unique_vals = df[sort].unique()
 
-                pyg_app = StreamlitRenderer(dataset=df, default_tab='Data')
-                pyg_app.explorer()
+                    by = st.selectbox(
+                        "Sort value",
+                        unique_vals,
+                    )
+
+                    cols2 = [x for x in cols if x != sort]
+                 
+                    var = st.selectbox(
+                        "V/S column",
+                        cols2,
+                    )
+
+                    if st.button("Sort", type="primary"):
+                        df = make_bool(df=df, sort=sort, by=by, name=by)
+                        summary(df=df, sort=sort, var=var, by=by)
+                        st.write(df)
+                        pyg_app = StreamlitRenderer(dataset=df, default_tab='Data')
+                        pyg_app.explorer()
 
                 
             except Exception as e:
                     st.error(f"An error occurred while reading the file: {e}")
 
-        countt = 0
-        countf = 0
-        for id in uids:
-            if id in aids:
-                countt = countt + 1
-            else:
-                countf = countf + 1
-        st.write(countt, countf)
+        #countt = 0
+        #countf = 0
+        #for id in uids:
+        #    if id in aids:
+        #        countt = countt + 1
+        #    else:
+        #        countf = countf + 1
+        #st.write(countt, countf)"""
 
 
 
