@@ -19,16 +19,19 @@ import pandas as pd
 import pygwalker as pyg
 from pygwalker.api.streamlit import StreamlitRenderer
 
-pio.templates.default = 'plotly'
-pio.templates[pio.templates.default].layout.colorway = px.colors.qualitative.Plotly#Dark2
+pio.templates.default = "plotly"
+pio.templates[pio.templates.default].layout.colorway = (
+    px.colors.qualitative.Plotly
+)  # Dark2
 
-def clear_page(title='Lanek'):
+
+def clear_page(title="Lanek"):
     try:
-        #im = Image.open('assets/logos/favicon.png')
+        # im = Image.open('assets/logos/favicon.png')
         st.set_page_config(
             page_title=title,
-            #page_icon=im,
-            layout='wide',
+            # page_icon=im,
+            layout="wide",
         )
         hide_streamlit_style = """
             <style>
@@ -48,69 +51,81 @@ def clear_page(title='Lanek'):
 
 def summary(df, sort, var, by):
     summary = df.groupby(var)[by].value_counts().unstack(fill_value=0)
-    summary = summary.rename(columns={True: 'Count_True', False: 'Count_False'})
-    summary['True/False Ratio'] = summary['Count_True'] / summary['Count_False'].replace(0, float('nan'))
-    summary['True/Total Ratio'] = (summary['Count_True'] / (summary['Count_True'] + summary['Count_False']))*100
-    summary['False/Total Ratio'] = (summary['Count_False'] / (summary['Count_True'] + summary['Count_False']))*100
+    summary = summary.rename(columns={True: "Count_True", False: "Count_False"})
+    summary["True/False Ratio"] = summary["Count_True"] / summary[
+        "Count_False"
+    ].replace(0, float("nan"))
+    summary["True/Total Ratio"] = (
+        summary["Count_True"] / (summary["Count_True"] + summary["Count_False"])
+    ) * 100
+    summary["False/Total Ratio"] = (
+        summary["Count_False"] / (summary["Count_True"] + summary["Count_False"])
+    ) * 100
     summary = summary.reset_index()
 
-    #st.write(summary)
+    # st.write(summary)
 
     # --- Plotting ---
     fig = go.Figure()
 
     # Bar plots for True and False counts
-    fig.add_trace(go.Bar(
-        x=summary[var],
-        y=summary['Count_True'],
-        name=by,
-        #marker_color='green'
-    ))
+    fig.add_trace(
+        go.Bar(
+            x=summary[var],
+            y=summary["Count_True"],
+            name=by,
+            # marker_color='green'
+        )
+    )
 
-    fig.add_trace(go.Bar(
-        x=summary[var],
-        y=summary['Count_False'],
-        name=f'No {by}',
-        #marker_color='red'
-    ))
-
-    # Line plot for True/Total Ratio on secondary y-axis
-    fig.add_trace(go.Scatter(
-        x=summary[var],
-        y=summary['True/Total Ratio'],
-        name=f'% {by}',
-        yaxis='y2',
-        mode='lines+markers',
-        line=dict(dash='dash')
-    ))
+    fig.add_trace(
+        go.Bar(
+            x=summary[var],
+            y=summary["Count_False"],
+            name=f"No {by}",
+            # marker_color='red'
+        )
+    )
 
     # Line plot for True/Total Ratio on secondary y-axis
-    fig.add_trace(go.Scatter(
-        x=summary[var],
-        y=summary['False/Total Ratio'],
-        name=f'% no {by}',
-        yaxis='y2',
-        mode='lines+markers',
-        line=dict(dash='dash')
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=summary[var],
+            y=summary["True/Total Ratio"],
+            name=f"% {by}",
+            yaxis="y2",
+            mode="lines+markers",
+            line=dict(dash="dash"),
+        )
+    )
+
+    # Line plot for True/Total Ratio on secondary y-axis
+    fig.add_trace(
+        go.Scatter(
+            x=summary[var],
+            y=summary["False/Total Ratio"],
+            name=f"% no {by}",
+            yaxis="y2",
+            mode="lines+markers",
+            line=dict(dash="dash"),
+        )
+    )
 
     # --- Layout ---
     fig.update_layout(
-        title=f'{sort}: {by} V/S {var}',
-        xaxis=dict(
-            title=var,
-            tickangle=-30  # Tilt labels by -45 degrees
-        ),
-        yaxis=dict(title='Cantidad'),
-        yaxis2=dict(title=f'% {by}', overlaying='y', side='right'),
-        barmode='group',
+        title=f"{sort}: {by} V/S {var}",
+        xaxis=dict(title=var, tickangle=-30),  # Tilt labels by -45 degrees
+        yaxis=dict(title="Cantidad"),
+        yaxis2=dict(title=f"% {by}", overlaying="y", side="right"),
+        barmode="group",
         legend=dict(x=0.05, y=0.5),
         height=600,
-        width=1000
+        width=1000,
     )
 
     st.write(fig)
-    #fig.show()
+    # fig.show()
+
 
 def make_bool(df, sort, by, name):
     estado = df[sort]
@@ -124,9 +139,8 @@ def make_bool(df, sort, by, name):
     return df
 
 
-
 def main():
-    clear_page('LostLess')
+    clear_page("LostLess")
     st.markdown("# Exploración datos LostLess")
     uploaded_files = st.file_uploader(
         "Choose a CSV file", type=["csv"], accept_multiple_files=True
@@ -137,14 +151,14 @@ def main():
         aids = []
         for file in uploaded_files:
             try:
-                df = pd.read_csv(file,delimiter=';')
+                df = pd.read_csv(file, delimiter=";")
                 df = df.dropna()
-                #st.dataframe(df)
+                # st.dataframe(df)
                 try:
                     uids = df["ID"].unique()
                 except:
                     aids = df["ID_PACIENTE"].unique()
-                    df['ID_CORRELATIVO'] = pd.factorize(df['ID_DE_PROFESIONAL'])[0]
+                    df["ID_CORRELATIVO"] = pd.factorize(df["ID_DE_PROFESIONAL"])[0]
 
                     cols = []
                     for col in df.columns.tolist():
@@ -173,25 +187,21 @@ def main():
                         df = make_bool(df=df, sort=sort, by=by, name=by)
                         summary(df=df, sort=sort, var=var, by=by)
                         st.write(df)
-                        pyg_app = StreamlitRenderer(dataset=df, default_tab='Data')
+                        pyg_app = StreamlitRenderer(dataset=df, default_tab="Data")
                         pyg_app.explorer()
 
-
             except Exception as e:
-                    st.error(f"An error occurred while reading the file: {e}")
+                st.error(f"An error occurred while reading the file: {e}")
 
-        #countt = 0
-        #countf = 0
-        #for id in uids:
+        # countt = 0
+        # countf = 0
+        # for id in uids:
         #    if id in aids:
         #        countt = countt + 1
         #    else:
         #        countf = countf + 1
-        #st.write(countt, countf)"""
+        # st.write(countt, countf)"""
 
 
-
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
