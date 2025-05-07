@@ -96,7 +96,7 @@ def summary(df, sort, var, by):
 
     # --- Layout ---
     fig.update_layout(
-        title=f'{sort} ({by}) V/S {var}',
+        title=f'{sort}: {by} V/S {var}',
         xaxis=dict(
             title=var,
             tickangle=-30  # Tilt labels by -45 degrees
@@ -163,7 +163,7 @@ def main():
                     )
 
                     cols2 = [x for x in cols if x != sort]
-                 
+
                     var = st.selectbox(
                         "V/S column",
                         cols2,
@@ -176,7 +176,7 @@ def main():
                         pyg_app = StreamlitRenderer(dataset=df, default_tab='Data')
                         pyg_app.explorer()
 
-                
+
             except Exception as e:
                     st.error(f"An error occurred while reading the file: {e}")
 
