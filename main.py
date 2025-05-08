@@ -171,13 +171,14 @@ def main():
             sort = st.selectbox(
                 "Sort column",
                 cols,
+                index = 8
             )
             cols2 = [x for x in cols if x != sort]
             unique_vals = df[sort].unique()
 
             by = st.selectbox(
                 "Sort value",
-                unique_vals,
+                unique_vals
             )
 
             cols2 = [x for x in cols if x != sort]
