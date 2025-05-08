@@ -63,12 +63,8 @@ def summary(df, sort, var, by):
     ) * 100
     summary = summary.reset_index()
 
-    # st.write(summary)
-
-    # --- Plotting ---
     fig = go.Figure()
 
-    # Bar plots for True and False counts
     fig.add_trace(
         go.Bar(
             x=summary[var],
@@ -86,8 +82,6 @@ def summary(df, sort, var, by):
             # marker_color='red'
         )
     )
-
-    # Line plot for True/Total Ratio on secondary y-axis
     fig.add_trace(
         go.Scatter(
             x=summary[var],
@@ -111,7 +105,6 @@ def summary(df, sort, var, by):
         )
     )
 
-    # --- Layout ---
     fig.update_layout(
         title=f"{sort}: {by} V/S {var}",
         xaxis=dict(title=var, tickangle=-30),  # Tilt labels by -45 degrees
@@ -122,9 +115,7 @@ def summary(df, sort, var, by):
         height=600,
         width=1000,
     )
-
     st.write(fig)
-    # fig.show()
 
 
 def make_bool(df, sort, by, name):
@@ -142,65 +133,69 @@ def make_bool(df, sort, by, name):
 def main():
     clear_page("LostLess")
     st.markdown("# Exploración datos LostLess")
-    uploaded_files = st.file_uploader(
-        "Choose a CSV file", type=["csv"], accept_multiple_files=True
+
+    patients = st.file_uploader(
+        "Seleccionar archivo de pacientes",
+        type=["csv"],
+        accept_multiple_files=False,
+        key="patients",
     )
 
-    if uploaded_files:
-        uids = []
-        aids = []
-        for file in uploaded_files:
-            try:
-                df = pd.read_csv(file, delimiter=";")
-                df = df.dropna()
-                # st.dataframe(df)
-                try:
-                    uids = df["ID"].unique()
-                except:
-                    aids = df["ID_PACIENTE"].unique()
-                    df["ID_CORRELATIVO"] = pd.factorize(df["ID_DE_PROFESIONAL"])[0]
+    events = st.file_uploader(
+        "Seleccionar archivo de eventos",
+        type=["csv"],
+        accept_multiple_files=False,
+        key="events",
+    )
 
-                    cols = []
-                    for col in df.columns.tolist():
-                        if "ID_" not in col:
-                            cols.append(col)
-                    sort = st.selectbox(
-                        "Sort column",
-                        cols,
-                    )
-                    cols2 = [x for x in cols if x != sort]
-                    unique_vals = df[sort].unique()
+    if events and patients:
+        try:
+            dfe = pd.read_csv(events, delimiter=";")
+            dfe = dfe.dropna()
+            dfe["PROFESIONAL_ID"] = pd.factorize(dfe["ID_DE_PROFESIONAL"])[0]
+            dfp = pd.read_csv(patients, delimiter=";")
+            dfp = dfp.dropna()
+            dfm = pd.merge(dfe, dfp, left_on="ID_PACIENTE", right_on="ID", how="left")
+            df = dfm.drop(columns=["ID"])
+            df["FECHA_DE_RESERVA"] = pd.to_datetime(
+                df["FECHA_DE_RESERVA"], format="%d/%m/%Y %H:%M"
+            )
+            df["MES"] = df["FECHA_DE_RESERVA"].dt.month
+            df["DIA"] = df["FECHA_DE_RESERVA"].dt.day_name()
+            df["HORA"] = df["FECHA_DE_RESERVA"].dt.hour
 
-                    by = st.selectbox(
-                        "Sort value",
-                        unique_vals,
-                    )
+            cols = []
+            for col in df.columns.tolist():
+                if "ID_" not in col:
+                    cols.append(col)
+            sort = st.selectbox(
+                "Sort column",
+                cols,
+            )
+            cols2 = [x for x in cols if x != sort]
+            unique_vals = df[sort].unique()
 
-                    cols2 = [x for x in cols if x != sort]
+            by = st.selectbox(
+                "Sort value",
+                unique_vals,
+            )
 
-                    var = st.selectbox(
-                        "V/S column",
-                        cols2,
-                    )
+            cols2 = [x for x in cols if x != sort]
 
-                    if st.button("Sort", type="primary"):
-                        df = make_bool(df=df, sort=sort, by=by, name=by)
-                        summary(df=df, sort=sort, var=var, by=by)
-                        st.write(df)
-                        pyg_app = StreamlitRenderer(dataset=df, default_tab="Data")
-                        pyg_app.explorer()
+            var = st.selectbox(
+                "V/S column",
+                cols2,
+            )
 
-            except Exception as e:
-                st.error(f"An error occurred while reading the file: {e}")
+            if st.button("Sort", type="primary"):
+                df = make_bool(df=df, sort=sort, by=by, name=by)
+                summary(df=df, sort=sort, var=var, by=by)
+                # st.write(df)
+                pyg_app = StreamlitRenderer(dataset=df, default_tab="Data")
+                pyg_app.explorer()
 
-        # countt = 0
-        # countf = 0
-        # for id in uids:
-        #    if id in aids:
-        #        countt = countt + 1
-        #    else:
-        #        countf = countf + 1
-        # st.write(countt, countf)"""
+        except Exception as e:
+            st.error(f"Error leyendo el archivo CSV: {e}")
 
 
 if __name__ == "__main__":
