@@ -1,8 +1,8 @@
 import pandas as pd
 
 # Input and output file paths
-input_file = "PCTES_ATENDIDOS_2024.xls"  # Replace with your Excel file
-output_file = "PCTES_ATENDIDOS_2024.csv"  # Replace with your desired output CSV file
+input_file = "ACTIVIDAD_AGENDAS2024.xls"  # Replace with your Excel file
+output_file = "ACTIVIDAD_AGENDAS2024.csv"  # Replace with your desired output CSV file
 
 # Load the Excel file
 excel_data = pd.ExcelFile(input_file)

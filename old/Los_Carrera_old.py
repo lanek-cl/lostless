@@ -15,9 +15,9 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
+import pandas as pd
 import pygwalker as pyg
 from pygwalker.api.streamlit import StreamlitRenderer
-import polars as pl
 
 pio.templates.default = "plotly"
 pio.templates[pio.templates.default].layout.colorway = (
@@ -50,20 +50,18 @@ def clear_page(title="Lanek"):
 
 
 def summary(df, sort, var, by):
-    summary = (
-        df.group_by(var)
-        .agg([
-            pl.col(by).sum().alias("Count_True"),
-            (1 - pl.col(by)).sum().alias("Count_False")
-        ])
-        .with_columns([
-            (pl.col("Count_True") / pl.col("Count_False").replace(0, None)).alias("True/False Ratio"),
-            (pl.col("Count_True") / (pl.col("Count_True") + pl.col("Count_False")) * 100).alias("True/Total Ratio"),
-            (pl.col("Count_False") / (pl.col("Count_True") + pl.col("Count_False")) * 100).alias("False/Total Ratio")
-        ])
-    )
-    summary = summary.drop_nulls()
-    summary = summary.sort(var)
+    summary = df.groupby(var)[by].value_counts().unstack(fill_value=0)
+    summary = summary.rename(columns={True: "Count_True", False: "Count_False"})
+    summary["True/False Ratio"] = summary["Count_True"] / summary[
+        "Count_False"
+    ].replace(0, float("nan"))
+    summary["True/Total Ratio"] = (
+        summary["Count_True"] / (summary["Count_True"] + summary["Count_False"])
+    ) * 100
+    summary["False/Total Ratio"] = (
+        summary["Count_False"] / (summary["Count_True"] + summary["Count_False"])
+    ) * 100
+    summary = summary.reset_index()
 
     fig = go.Figure()
 
@@ -120,9 +118,16 @@ def summary(df, sort, var, by):
     st.write(fig)
 
 
-
 def make_bool(df, sort, by, name):
-    return df.with_columns((df[sort] == by).alias(name))
+    estado = df[sort]
+    asistido = []
+    for i in estado:
+        if i == by:
+            asistido.append(True)
+        else:
+            asistido.append(False)
+    df[name] = asistido
+    return df
 
 
 def main():
@@ -145,46 +150,25 @@ def main():
 
     if events and patients:
         try:
-            # Read CSV files
-            dfe = pl.read_csv(events, separator=";", ignore_errors=True)
-            dfp = pl.read_csv(patients, separator=";", ignore_errors=True)
+            dfe = pd.read_csv(events, delimiter=";", low_memory=False)
 
-
-            # Drop nulls
-            dfe = dfe.drop_nulls()
-            dfp = dfp.drop_nulls()
-
-
-            # Factorize 'ID_DE_PROFESIONAL' to create 'PROFESIONAL_ID'
-            #dfe = dfe.with_columns([
-            #    pl.col("ID_DE_PROFESIONAL").cast(pl.Categorical).cat.codes().alias("PROFESIONAL_ID")
-            #])
+            dfe["PROFESIONAL_ID"] = pd.factorize(dfe["ID_DE_PROFESIONAL"])[0]
+            dfp = pd.read_csv(patients, delimiter=";", low_memory=False)
 
 
 
-            # Merge dataframes on 'ID_PACIENTE' and 'ID'
-            dfm = dfe.join(dfp, left_on="ID_PACIENTE", right_on="ID", how="right")
-            #dfm = dfp.join(dfe, left_on="ID", right_on="ID_PACIENTE", how="left")
-            dfm = dfm.drop_nulls()
-
-            # Drop 'ID' column
-            df = dfm.drop("ID")
-
-            # Parse 'FECHA_DE_RESERVA' to datetime
-            df = df.with_columns([
-                pl.col("FECHA_DE_RESERVA").str.strptime(pl.Datetime, "%d/%m/%Y %H:%M", strict=False)
-            ])
-
-            # Extract month, day name, and hour
-            df = df.with_columns([
-                pl.col("FECHA_DE_RESERVA").dt.month().alias("MES"),
-                pl.col("FECHA_DE_RESERVA").dt.strftime("%A").alias("DIA"),
-                pl.col("FECHA_DE_RESERVA").dt.hour().alias("HORA")
-            ])
-
+            dfm = pd.merge(dfe, dfp, left_on="ID_PACIENTE", right_on="ID", how="left")
+            dfm.dropna()
+            df = dfm.drop(columns=["ID"])
+            df["FECHA_DE_RESERVA"] = pd.to_datetime(
+                df["FECHA_DE_RESERVA"], format="%d/%m/%Y %H:%M"
+            )
+            df["MES"] = df["FECHA_DE_RESERVA"].dt.month
+            df["DIA"] = df["FECHA_DE_RESERVA"].dt.day_name()
+            df["HORA"] = df["FECHA_DE_RESERVA"].dt.hour
 
             cols = []
-            for col in df.columns:
+            for col in df.columns.tolist():
                 if "ID_" not in col:
                     cols.append(col)
             sort = st.sidebar.selectbox(
@@ -197,8 +181,7 @@ def main():
 
             by = st.sidebar.selectbox(
                 "Sort value",
-                unique_vals,
-                index = 1
+                unique_vals
             )
 
             cols2 = [x for x in cols if x != sort]
@@ -206,12 +189,13 @@ def main():
             var = st.sidebar.selectbox(
                 "V/S column",
                 cols2,
-                index = 8
+                index = 9
             )
 
             if st.sidebar.button("Filter", type="primary"):
                 df = make_bool(df=df, sort=sort, by=by, name=by)
                 summary(df=df, sort=sort, var=var, by=by)
+                #st.dataframe(df)
                 pyg_app = StreamlitRenderer(dataset=df, default_tab="Data")
                 pyg_app.explorer()
 

@@ -4,3 +4,4 @@ streamlit
 plotly
 pandas
 pygwalker
+polars

@@ -1,23 +1,25 @@
 # -*- coding: utf-8 -*-
 """
 @file    : main.py
-@brief   : Runs lostless analysis
+@brief   : Runs lostless analysis using Polars
 @date    : 2025/04/29
 @version : 1.0.0
 @author  : Lucas Cortés.
 @contact : lucas.cortes@lanek.cl.
 """
 
-import math
+import polars as pl
 import numpy as np
-import matplotlib.pyplot as plt
 import streamlit as st
-import plotly.express as px
 import plotly.graph_objects as go
+import plotly.express as px
 import plotly.io as pio
-import pandas as pd
+from datetime import datetime, date
+import re
+import time
 import pygwalker as pyg
 from pygwalker.api.streamlit import StreamlitRenderer
+
 
 pio.templates.default = "plotly"
 pio.templates[pio.templates.default].layout.colorway = (
@@ -27,10 +29,8 @@ pio.templates[pio.templates.default].layout.colorway = (
 
 def clear_page(title="Lanek"):
     try:
-        # im = Image.open('assets/logos/favicon.png')
         st.set_page_config(
             page_title=title,
-            # page_icon=im,
             layout="wide",
         )
         hide_streamlit_style = """
@@ -50,18 +50,22 @@ def clear_page(title="Lanek"):
 
 
 def summary(df, sort, var, by):
-    summary = df.groupby(var)[by].value_counts().unstack(fill_value=0)
-    summary = summary.rename(columns={True: "Count_True", False: "Count_False"})
-    summary["True/False Ratio"] = summary["Count_True"] / summary[
-        "Count_False"
-    ].replace(0, float("nan"))
-    summary["True/Total Ratio"] = (
-        summary["Count_True"] / (summary["Count_True"] + summary["Count_False"])
-    ) * 100
-    summary["False/Total Ratio"] = (
-        summary["Count_False"] / (summary["Count_True"] + summary["Count_False"])
-    ) * 100
-    summary = summary.reset_index()
+    if var == "EDAD":
+        df = df.filter(pl.col("EDAD") != 3)
+    summary = (
+        df.group_by(var)
+        .agg([
+            pl.col(by).sum().alias("Count_True"),
+            (1 - pl.col(by)).sum().alias("Count_False")
+        ])
+        .with_columns([
+            (pl.col("Count_True") / pl.col("Count_False").replace(0, None)).alias("True/False Ratio"),
+            (pl.col("Count_True") / (pl.col("Count_True") + pl.col("Count_False")) * 100).alias("True/Total Ratio"),
+            (pl.col("Count_False") / (pl.col("Count_True") + pl.col("Count_False")) * 100).alias("False/Total Ratio")
+        ])
+    )
+    summary = summary.drop_nulls()
+    summary = summary.sort(var)
 
     fig = go.Figure()
 
@@ -78,7 +82,7 @@ def summary(df, sort, var, by):
         go.Bar(
             x=summary[var],
             y=summary["Count_False"],
-            name=f"No {by}",
+            name=f"!{by}",
             # marker_color='red'
         )
     )
@@ -98,7 +102,7 @@ def summary(df, sort, var, by):
         go.Scatter(
             x=summary[var],
             y=summary["False/Total Ratio"],
-            name=f"% no {by}",
+            name=f"% !{by}",
             yaxis="y2",
             mode="lines+markers",
             line=dict(dash="dash"),
@@ -119,22 +123,26 @@ def summary(df, sort, var, by):
 
 
 def make_bool(df, sort, by, name):
-    estado = df[sort]
-    asistido = []
-    for i in estado:
-        if i == by:
-            asistido.append(True)
-        else:
-            asistido.append(False)
-    df[name] = asistido
-    return df
+    return df.with_columns((df[sort] == by).alias(name))
+
+
+def fix_year(date_str):
+    try:
+        match = re.search(r"(\d{4}|\d{2})", date_str)
+        if match:
+            year = match.group(0)
+            if len(year) == 4 and int(year) < 1000:
+                date_str = date_str.replace(year, str(1900 + int(year)))
+        return date_str
+    except Exception:
+        return None
 
 
 def main():
     clear_page("LostLess")
     st.markdown("# Exploración datos LostLess")
 
-    file = st.file_uploader(
+    file = st.sidebar.file_uploader(
         "Seleccionar archivo CSV",
         type=["csv"],
         accept_multiple_files=False,
@@ -142,50 +150,71 @@ def main():
     )
 
     if file:
+
         try:
-            df = pd.read_csv(file, delimiter=",", low_memory=False)
-            st.write(df)
-            df = df.drop(columns=["FECHA_ANULACION"])
-            if st.toggle("Drop NaN?"):
-                df = df.dropna()
+            # Read CSV file
+            df = pl.read_csv(file)
+            # Ensure required columns are present
+            required_columns = ["HORA_ATENCION", "FECHA_RESERVA", "HORA_RESERVA", "FECHA_NAC_PACIENTE"]
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                st.error(f"Missing required columns: {missing_columns}")
+                return
 
-
-            df["FECHA_INGRESO"] = pd.to_datetime(
-                df["FECHA_INGRESO"], format="%Y-%m-%d %H:%M:%S"
+            # Create a new column "Asistencia" to avoid any naming conflict
+            df = df.with_columns(
+                # Create "Asistencia" column
+                pl.when(pl.col("HORA_ATENCION").is_not_null())
+                .then(pl.lit("ASISITIDA"))
+                .otherwise(pl.lit("ANULADA"))
+                .alias("ESTADO")
             )
-            df["MES"] = df["FECHA_INGRESO"].dt.month
-            df["DIA"] = df["FECHA_INGRESO"].dt.day_name()
-            df["HORA"] = df["FECHA_INGRESO"].dt.hour
 
-            cols = []
-            for col in df.columns.tolist():
-                if "ID_" not in col:
-                    cols.append(col)
-            sort = st.selectbox(
-                "Sort column",
-                cols,
-                index = 8
+            # Parse dates and times
+            df = df.with_columns(
+                pl.col("FECHA_RESERVA").str.strptime(pl.Date, "%Y-%m-%d", strict=False).alias("FECHA_RESERVA"),
+                pl.col("HORA_RESERVA").str.strptime(pl.Time, "%H:%M", strict=False).alias("HORA_RESERVA"),
+                pl.col("FECHA_NAC_PACIENTE").str.strptime(pl.Datetime, "%Y-%m-%d %H:%M:%S", strict=False).alias("FECHA_NAC_PACIENTE"),
             )
+
+            # Extract date/time components
+            df = df.with_columns(
+                pl.col("FECHA_RESERVA").dt.month().alias("MES"),
+                pl.col("FECHA_RESERVA").dt.strftime("%A").alias("DIA"), #.dt.weekday().alias("DIA"),
+                pl.col("FECHA_RESERVA").dt.weekday().alias("DIA_NUM"),
+                pl.col("HORA_RESERVA").dt.hour().alias("HORA"),
+            )
+
+
+            today = datetime.now()
+
+            df = df.with_columns(
+                (
+                    (pl.lit(today.year) - pl.col("FECHA_NAC_PACIENTE").dt.year()) -
+                    (
+                        (pl.col("FECHA_NAC_PACIENTE").dt.month() > today.month) |
+                        (
+                            (pl.col("FECHA_NAC_PACIENTE").dt.month() == today.month) &
+                            (pl.col("FECHA_NAC_PACIENTE").dt.day() > today.day)
+                        )
+                    ).cast(pl.Int32)
+                ).alias("EDAD")
+            )
+
+
+            # Filter columns for sidebar options
+            cols = [col for col in df.columns if "ID_" not in col]
+            sort = st.sidebar.selectbox("Sort column", cols, index=25)
+            unique_vals = df[sort].unique().to_list()
+            by = st.sidebar.selectbox("Sort value", unique_vals, index=0)
             cols2 = [x for x in cols if x != sort]
-            unique_vals = df[sort].unique()
+            var = st.sidebar.selectbox("V/S column", cols2, index=28)
 
-            by = st.selectbox(
-                "Sort value",
-                unique_vals
-            )
-
-            cols2 = [x for x in cols if x != sort]
-
-            var = st.selectbox(
-                "V/S column",
-                cols2,
-            )
-
-            if st.button("Sort", type="primary"):
+            # Apply filter and display results
+            if st.sidebar.button("Filter", type="primary"):
                 df = make_bool(df=df, sort=sort, by=by, name=by)
                 summary(df=df, sort=sort, var=var, by=by)
-                # st.write(df)
-                pyg_app = StreamlitRenderer(dataset=df, default_tab="Data")
+                pyg_app = StreamlitRenderer(dataset=df, default_tab='data', appearance='light')
                 pyg_app.explorer()
 
         except Exception as e:
