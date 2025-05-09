@@ -73,7 +73,7 @@ def summary(df, sort, var, by):
         go.Bar(
             x=summary[var],
             y=summary["Count_True"],
-            name=by,
+            name=f"# {by}",
             # marker_color='green'
         )
     )
@@ -82,7 +82,7 @@ def summary(df, sort, var, by):
         go.Bar(
             x=summary[var],
             y=summary["Count_False"],
-            name=f"!{by}",
+            name=f"# !{by}",
             # marker_color='red'
         )
     )
