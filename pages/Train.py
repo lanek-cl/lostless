@@ -14,8 +14,6 @@ import joblib
 from scipy.sparse import hstack
 
 
-
-
 def clear_page(title="Lanek"):
     try:
         # im = Image.open('assets/logos/favicon.png')
@@ -57,7 +55,7 @@ def train(df, drop_columns, sample_size):
     y = df["ASISTIDA"]
 
     # One-hot encode categorical
-    encoder = OneHotEncoder(sparse_output=True, handle_unknown='ignore')
+    encoder = OneHotEncoder(sparse_output=True, handle_unknown="ignore")
     encoded_cat = encoder.fit_transform(X.select_dtypes(include=["object"]))
 
     # Include numerical features
@@ -69,7 +67,9 @@ def train(df, drop_columns, sample_size):
     X_balanced, y_balanced = smote.fit_resample(X_combined, y)
 
     # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X_balanced, y_balanced, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_balanced, y_balanced, test_size=0.2, random_state=42
+    )
 
     # Train and evaluate model
     clf = RandomForestClassifier(random_state=42, n_jobs=-1)
@@ -113,7 +113,6 @@ def test(df, drop_columns, row_number):
         st.error("Incorrect!")
 
 
-
 def main():
 
     clear_page("Train")
@@ -122,7 +121,6 @@ def main():
 
     # File uploader
     uploaded_file = st.file_uploader("Upload an CSV file", type=["csv"])
-
 
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
@@ -139,7 +137,14 @@ def main():
                     df.columns,
                     default=["ESTADO"],
                 )
-                row_number = st.number_input("Row Number", min_value=0, max_value=df.shape[0], value=1, step=1, key="row_num")
+                row_number = st.number_input(
+                    "Row Number",
+                    min_value=0,
+                    max_value=df.shape[0],
+                    value=1,
+                    step=1,
+                    key="row_num",
+                )
                 submitted = st.form_submit_button("Test Model")
                 if submitted:
                     try:
@@ -154,7 +159,14 @@ def main():
                     df.columns,
                     default=["ESTADO"],
                 )
-                sample_size = st.number_input("Sample Size", min_value=10000, max_value=df.shape[0], value=10000, step=10000, key="sample_size")
+                sample_size = st.number_input(
+                    "Sample Size",
+                    min_value=10000,
+                    max_value=df.shape[0],
+                    value=10000,
+                    step=10000,
+                    key="sample_size",
+                )
                 submitted = st.form_submit_button("Train Model")
                 if submitted:
                     try:

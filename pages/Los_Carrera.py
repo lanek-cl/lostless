@@ -52,15 +52,29 @@ def clear_page(title="Lanek"):
 def summary(df, sort, var, by):
     summary = (
         df.group_by(var)
-        .agg([
-            pl.col(by).sum().alias("Count_True"),
-            (1 - pl.col(by)).sum().alias("Count_False")
-        ])
-        .with_columns([
-            (pl.col("Count_True") / pl.col("Count_False").replace(0, None)).alias("True/False Ratio"),
-            (pl.col("Count_True") / (pl.col("Count_True") + pl.col("Count_False")) * 100).alias("True/Total Ratio"),
-            (pl.col("Count_False") / (pl.col("Count_True") + pl.col("Count_False")) * 100).alias("False/Total Ratio")
-        ])
+        .agg(
+            [
+                pl.col(by).sum().alias("Count_True"),
+                (1 - pl.col(by)).sum().alias("Count_False"),
+            ]
+        )
+        .with_columns(
+            [
+                (pl.col("Count_True") / pl.col("Count_False").replace(0, None)).alias(
+                    "True/False Ratio"
+                ),
+                (
+                    pl.col("Count_True")
+                    / (pl.col("Count_True") + pl.col("Count_False"))
+                    * 100
+                ).alias("True/Total Ratio"),
+                (
+                    pl.col("Count_False")
+                    / (pl.col("Count_True") + pl.col("Count_False"))
+                    * 100
+                ).alias("False/Total Ratio"),
+            ]
+        )
     )
     summary = summary.drop_nulls()
     summary = summary.sort(var)
@@ -120,7 +134,6 @@ def summary(df, sort, var, by):
     st.write(fig)
 
 
-
 def make_bool(df, sort, by, name):
     return df.with_columns((df[sort] == by).alias(name))
 
@@ -149,70 +162,61 @@ def main():
             dfe = pl.read_csv(events, separator=";", ignore_errors=True)
             dfp = pl.read_csv(patients, separator=";", ignore_errors=True)
 
-
             # Drop nulls
             dfe = dfe.drop_nulls()
             dfp = dfp.drop_nulls()
 
-
             # Factorize 'ID_DE_PROFESIONAL' to create 'PROFESIONAL_ID'
-            #dfe = dfe.with_columns([
+            # dfe = dfe.with_columns([
             #    pl.col("ID_DE_PROFESIONAL").cast(pl.Categorical).cat.codes().alias("PROFESIONAL_ID")
-            #])
-
-
+            # ])
 
             # Merge dataframes on 'ID_PACIENTE' and 'ID'
             dfm = dfe.join(dfp, left_on="ID_PACIENTE", right_on="ID", how="right")
-            #dfm = dfp.join(dfe, left_on="ID", right_on="ID_PACIENTE", how="left")
+            # dfm = dfp.join(dfe, left_on="ID", right_on="ID_PACIENTE", how="left")
             dfm = dfm.drop_nulls()
 
             # Drop 'ID' column
             df = dfm.drop("ID")
 
             # Parse 'FECHA_DE_RESERVA' to datetime
-            df = df.with_columns([
-                pl.col("FECHA_DE_RESERVA").str.strptime(pl.Datetime, "%d/%m/%Y %H:%M", strict=False)
-            ])
+            df = df.with_columns(
+                [
+                    pl.col("FECHA_DE_RESERVA").str.strptime(
+                        pl.Datetime, "%d/%m/%Y %H:%M", strict=False
+                    )
+                ]
+            )
 
             # Extract month, day name, and hour
-            df = df.with_columns([
-                pl.col("FECHA_DE_RESERVA").dt.month().alias("MES"),
-                pl.col("FECHA_DE_RESERVA").dt.strftime("%A").alias("DIA"),
-                pl.col("FECHA_DE_RESERVA").dt.hour().alias("HORA")
-            ])
-
+            df = df.with_columns(
+                [
+                    pl.col("FECHA_DE_RESERVA").dt.month().alias("MES"),
+                    pl.col("FECHA_DE_RESERVA").dt.strftime("%A").alias("DIA"),
+                    pl.col("FECHA_DE_RESERVA").dt.hour().alias("HORA"),
+                ]
+            )
 
             cols = []
             for col in df.columns:
                 if "ID_" not in col:
                     cols.append(col)
-            sort = st.sidebar.selectbox(
-                "Sort column",
-                cols,
-                index = 8
-            )
+            sort = st.sidebar.selectbox("Sort column", cols, index=8)
             cols2 = [x for x in cols if x != sort]
             unique_vals = df[sort].unique()
 
-            by = st.sidebar.selectbox(
-                "Sort value",
-                unique_vals,
-                index = 1
-            )
+            by = st.sidebar.selectbox("Sort value", unique_vals, index=1)
 
             cols2 = [x for x in cols if x != sort]
 
-            var = st.sidebar.selectbox(
-                "V/S column",
-                cols2,
-                index = 8
-            )
+            var = st.sidebar.selectbox("V/S column", cols2, index=8)
 
             if st.sidebar.button("Filter", type="primary"):
                 df = make_bool(df=df, sort=sort, by=by, name=by)
                 summary(df=df, sort=sort, var=var, by=by)
-                pyg_app = StreamlitRenderer(dataset=df, default_tab='data', appearance='light')
+                pyg_app = StreamlitRenderer(
+                    dataset=df, default_tab="data", appearance="light"
+                )
                 pyg_app.explorer()
 
         except Exception as e:

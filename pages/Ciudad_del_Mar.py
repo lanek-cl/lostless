@@ -54,15 +54,29 @@ def summary(df, sort, var, by):
         df = df.filter(pl.col("EDAD") != 3)
     summary = (
         df.group_by(var)
-        .agg([
-            pl.col(by).sum().alias("Count_True"),
-            (1 - pl.col(by)).sum().alias("Count_False")
-        ])
-        .with_columns([
-            (pl.col("Count_True") / pl.col("Count_False").replace(0, None)).alias("True/False Ratio"),
-            (pl.col("Count_True") / (pl.col("Count_True") + pl.col("Count_False")) * 100).alias("True/Total Ratio"),
-            (pl.col("Count_False") / (pl.col("Count_True") + pl.col("Count_False")) * 100).alias("False/Total Ratio")
-        ])
+        .agg(
+            [
+                pl.col(by).sum().alias("Count_True"),
+                (1 - pl.col(by)).sum().alias("Count_False"),
+            ]
+        )
+        .with_columns(
+            [
+                (pl.col("Count_True") / pl.col("Count_False").replace(0, None)).alias(
+                    "True/False Ratio"
+                ),
+                (
+                    pl.col("Count_True")
+                    / (pl.col("Count_True") + pl.col("Count_False"))
+                    * 100
+                ).alias("True/Total Ratio"),
+                (
+                    pl.col("Count_False")
+                    / (pl.col("Count_True") + pl.col("Count_False"))
+                    * 100
+                ).alias("False/Total Ratio"),
+            ]
+        )
     )
     summary = summary.drop_nulls()
     summary = summary.sort(var)
@@ -155,7 +169,12 @@ def main():
             # Read CSV file
             df = pl.read_csv(file)
             # Ensure required columns are present
-            required_columns = ["HORA_ATENCION", "FECHA_RESERVA", "HORA_RESERVA", "FECHA_NAC_PACIENTE"]
+            required_columns = [
+                "HORA_ATENCION",
+                "FECHA_RESERVA",
+                "HORA_RESERVA",
+                "FECHA_NAC_PACIENTE",
+            ]
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
                 st.error(f"Missing required columns: {missing_columns}")
@@ -172,35 +191,41 @@ def main():
 
             # Parse dates and times
             df = df.with_columns(
-                pl.col("FECHA_RESERVA").str.strptime(pl.Date, "%Y-%m-%d", strict=False).alias("FECHA_RESERVA"),
-                pl.col("HORA_RESERVA").str.strptime(pl.Time, "%H:%M", strict=False).alias("HORA_RESERVA"),
-                pl.col("FECHA_NAC_PACIENTE").str.strptime(pl.Datetime, "%Y-%m-%d %H:%M:%S", strict=False).alias("FECHA_NAC_PACIENTE"),
+                pl.col("FECHA_RESERVA")
+                .str.strptime(pl.Date, "%Y-%m-%d", strict=False)
+                .alias("FECHA_RESERVA"),
+                pl.col("HORA_RESERVA")
+                .str.strptime(pl.Time, "%H:%M", strict=False)
+                .alias("HORA_RESERVA"),
+                pl.col("FECHA_NAC_PACIENTE")
+                .str.strptime(pl.Datetime, "%Y-%m-%d %H:%M:%S", strict=False)
+                .alias("FECHA_NAC_PACIENTE"),
             )
 
             # Extract date/time components
             df = df.with_columns(
                 pl.col("FECHA_RESERVA").dt.month().alias("MES"),
-                pl.col("FECHA_RESERVA").dt.strftime("%A").alias("DIA"), #.dt.weekday().alias("DIA"),
+                pl.col("FECHA_RESERVA")
+                .dt.strftime("%A")
+                .alias("DIA"),  # .dt.weekday().alias("DIA"),
                 pl.col("FECHA_RESERVA").dt.weekday().alias("DIA_NUM"),
                 pl.col("HORA_RESERVA").dt.hour().alias("HORA"),
             )
-
 
             today = datetime.now()
 
             df = df.with_columns(
                 (
-                    (pl.lit(today.year) - pl.col("FECHA_NAC_PACIENTE").dt.year()) -
-                    (
-                        (pl.col("FECHA_NAC_PACIENTE").dt.month() > today.month) |
-                        (
-                            (pl.col("FECHA_NAC_PACIENTE").dt.month() == today.month) &
-                            (pl.col("FECHA_NAC_PACIENTE").dt.day() > today.day)
+                    (pl.lit(today.year) - pl.col("FECHA_NAC_PACIENTE").dt.year())
+                    - (
+                        (pl.col("FECHA_NAC_PACIENTE").dt.month() > today.month)
+                        | (
+                            (pl.col("FECHA_NAC_PACIENTE").dt.month() == today.month)
+                            & (pl.col("FECHA_NAC_PACIENTE").dt.day() > today.day)
                         )
                     ).cast(pl.Int32)
                 ).alias("EDAD")
             )
-
 
             # Filter columns for sidebar options
             cols = [col for col in df.columns if "ID_" not in col]
@@ -214,21 +239,35 @@ def main():
             if st.sidebar.button("Filter", type="primary"):
                 df = make_bool(df=df, sort=sort, by=by, name=by)
                 summary(df=df, sort=sort, var=var, by=by)
-                pyg_app = StreamlitRenderer(dataset=df, default_tab='data', appearance='light')
+                pyg_app = StreamlitRenderer(
+                    dataset=df, default_tab="data", appearance="light"
+                )
                 pyg_app.explorer()
 
-                df2 = df.drop(["ID_AMBULATORIO", "FECHA_CREACION_PAC", "FECHA_CONFIRMACION", "FECHA_ANULACION", "RESPING_RESERVA", "RESCONF_RESERVA", "FECREC_RESERVA", "HORA_ATENCION", "FECHA_NAC_PACIENTE", "MONTO_RESERVA", "FECHA_FICHA"])
+                df2 = df.drop(
+                    [
+                        "ID_AMBULATORIO",
+                        "FECHA_CREACION_PAC",
+                        "FECHA_CONFIRMACION",
+                        "FECHA_ANULACION",
+                        "RESPING_RESERVA",
+                        "RESCONF_RESERVA",
+                        "FECREC_RESERVA",
+                        "HORA_ATENCION",
+                        "FECHA_NAC_PACIENTE",
+                        "MONTO_RESERVA",
+                        "FECHA_FICHA",
+                    ]
+                )
                 st.dataframe(df2)
-
 
                 csv_data = df2.write_csv()
                 st.sidebar.download_button(
                     label="Download CSV",
                     data=csv_data,
                     file_name="data.csv",
-                    mime="text/csv"
+                    mime="text/csv",
                 )
-
 
         except Exception as e:
             st.error(f"Error leyendo el archivo CSV: {e}")

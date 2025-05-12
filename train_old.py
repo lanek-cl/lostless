@@ -11,19 +11,20 @@ import joblib
 import time
 
 
-def train(df, drop_columns, sample_size):
-    # Drop specified columns
-    df = df.drop(columns=drop_columns, axis=1)
+def train():
+    # Load dataset
+    df = pd.read_csv("../data.csv")
+    df = df.drop("ESTADO", axis=1)
+    df = df.dropna().dropna(axis=1)
+
     # Sample for training
-    if sample_size != -1:
-        # Sample a subset of the data
-        df = df.sample(n=sample_size, random_state=42)
+    df = df.sample(n=10000, random_state=42)
 
     # Downcast numerical types
     for col in df.select_dtypes(include=["int"]).columns:
-        df[col] = pd.to_numeric(df[col], downcast="integer", errors="coerce")
+        df[col] = pd.to_numeric(df[col], downcast="integer")
     for col in df.select_dtypes(include=["float"]).columns:
-        df[col] = pd.to_numeric(df[col], downcast="float", errors="coerce")
+        df[col] = pd.to_numeric(df[col], downcast="float")
 
     # Split features and labels
     X = df.drop(columns=["ASISTIDA"])
@@ -32,8 +33,6 @@ def train(df, drop_columns, sample_size):
     # One-hot encode categorical
     encoder = OneHotEncoder(sparse_output=True, handle_unknown="ignore")
     encoded_cat = encoder.fit_transform(X.select_dtypes(include=["object"]))
-
-    # Include numerical features
     numerical = X.select_dtypes(include=["number"]).to_numpy()
     X_combined = hstack([numerical, encoded_cat])
 
@@ -53,16 +52,13 @@ def train(df, drop_columns, sample_size):
     print(classification_report(y_test, y_pred))
 
     # Save model and encoder
-    joblib.dump(clf, "../models/lostless/rf_model.joblib")
-    joblib.dump(encoder, "../models/lostless/encoder.joblib")
+    joblib.dump(clf, "../rf_model.joblib")
+    joblib.dump(encoder, "../encoder.joblib")
 
 
 def main():
-    # Load dataset
-    df = pd.read_csv("../data.csv")
-    df = df.dropna().dropna(axis=1)
     start = time.time()
-    train(df, ["ESTADO"], 100000)
+    train()
     stop = time.time()
     print(f"Training time: {stop - start:.2f} seconds")
 

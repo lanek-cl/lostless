@@ -26,6 +26,7 @@ def clear_page(title="Lanek"):
     except Exception:
         pass
 
+
 clear_page("Converter")
 # Streamlit app title
 st.title("Excel to CSV Converter")
@@ -60,7 +61,7 @@ if uploaded_file:
             label="Download CSV",
             data=csv_buffer,
             file_name=f"{uploaded_file.name.split('.')[0]}.csv",
-            mime="text/csv"
+            mime="text/csv",
         )
 
         st.success("All sheets have been combined and are ready for download!")

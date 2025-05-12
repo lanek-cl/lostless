@@ -5,6 +5,7 @@ from sklearn.preprocessing import OneHotEncoder
 from scipy.sparse import hstack
 import joblib
 
+
 def main():
     # Load full dataset
     df = pd.read_csv("../data.csv")
@@ -37,6 +38,7 @@ def main():
     print(f"Label: {y_true}, Predicted: {y_pred[0]}")
     result = "Correct" if y_true == y_pred[0] else "Incorrect"
     print(result)
+
 
 if __name__ == "__main__":
     main()
