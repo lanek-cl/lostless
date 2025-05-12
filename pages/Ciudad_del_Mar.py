@@ -2,7 +2,7 @@
 """
 @file    : main.py
 @brief   : Runs lostless analysis using Polars
-@date    : 2025/04/29
+@date    : 2025/05/12
 @version : 1.0.0
 @author  : Lucas Cortés.
 @contact : lucas.cortes@lanek.cl.
@@ -165,7 +165,7 @@ def main():
             df = df.with_columns(
                 # Create "Asistencia" column
                 pl.when(pl.col("HORA_ATENCION").is_not_null())
-                .then(pl.lit("ASISITIDA"))
+                .then(pl.lit("ASISTIDA"))
                 .otherwise(pl.lit("ANULADA"))
                 .alias("ESTADO")
             )
@@ -216,6 +216,15 @@ def main():
                 summary(df=df, sort=sort, var=var, by=by)
                 pyg_app = StreamlitRenderer(dataset=df, default_tab='data', appearance='light')
                 pyg_app.explorer()
+
+                csv_data = df.write_csv()
+                st.sidebar.download_button(
+                    label="Download CSV",
+                    data=csv_data,
+                    file_name="data.csv",
+                    mime="text/csv"
+                )
+
 
         except Exception as e:
             st.error(f"Error leyendo el archivo CSV: {e}")
