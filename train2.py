@@ -6,7 +6,7 @@ from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 
 # Load dataset
-df = pd.read_csv("data.csv")
+df = pd.read_csv("../data.csv")
 
 # Downcast numerical columns to reduce memory usage
 for col in df.select_dtypes(include=["int"]).columns:

@@ -6,7 +6,7 @@ from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 
 # Load your dataset as a Pandas DataFrame
-df = pd.read_csv("data.csv")
+df = pd.read_csv("../data.csv")
 
 # Feature engineering
 X = df.drop(columns=["ASISTIDA"])  # Features
