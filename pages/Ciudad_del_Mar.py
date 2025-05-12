@@ -217,7 +217,11 @@ def main():
                 pyg_app = StreamlitRenderer(dataset=df, default_tab='data', appearance='light')
                 pyg_app.explorer()
 
-                csv_data = df.write_csv()
+                df2 = df.drop(["ID_AMBULATORIO", "FECHA_CREACION_PAC", "FECHA_CONFIRMACION", "FECHA_ANULACION", "RESPING_RESERVA", "RESCONF_RESERVA", "FECREC_RESERVA", "HORA_ATENCION", "FECHA_NAC_PACIENTE", "MONTO_RESERVA", "FECHA_FICHA"])
+                st.dataframe(df2)
+
+
+                csv_data = df2.write_csv()
                 st.sidebar.download_button(
                     label="Download CSV",
                     data=csv_data,

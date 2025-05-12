@@ -212,7 +212,7 @@ def main():
             if st.sidebar.button("Filter", type="primary"):
                 df = make_bool(df=df, sort=sort, by=by, name=by)
                 summary(df=df, sort=sort, var=var, by=by)
-                pyg_app = StreamlitRenderer(dataset=df, default_tab="Data")
+                pyg_app = StreamlitRenderer(dataset=df, default_tab='data', appearance='light')
                 pyg_app.explorer()
 
         except Exception as e:
