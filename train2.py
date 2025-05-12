@@ -8,6 +8,13 @@ import numpy as np
 # Load dataset
 df = pd.read_csv("../data.csv")
 
+# Drop rows with missing values
+df = df.dropna()
+
+# Alternatively, drop columns with missing values
+df = df.dropna(axis=1)
+print(df)
+
 # Downcast numerical columns to reduce memory usage
 for col in df.select_dtypes(include=["int"]).columns:
     df[col] = pd.to_numeric(df[col], downcast="integer")
