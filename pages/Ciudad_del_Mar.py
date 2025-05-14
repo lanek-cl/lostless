@@ -9,6 +9,7 @@
 """
 
 import polars as pl
+import pandas as pd
 import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
@@ -202,15 +203,16 @@ def main():
                 .alias("FECHA_NAC_PACIENTE"),
             )
 
+
             # Extract date/time components
             df = df.with_columns(
-                pl.col("FECHA_RESERVA").dt.month().alias("MES"),
-                pl.col("FECHA_RESERVA")
-                .dt.strftime("%A")
-                .alias("DIA"),  # .dt.weekday().alias("DIA"),
+                pl.col("FECHA_RESERVA").dt.strftime("%B").alias("MES_NAME"),
+                pl.col("FECHA_RESERVA").dt.month().alias("MES_NUM"),
+                pl.col("FECHA_RESERVA").dt.strftime("%A").alias("DIA_NAME"),
                 pl.col("FECHA_RESERVA").dt.weekday().alias("DIA_NUM"),
-                pl.col("HORA_RESERVA").dt.hour().alias("HORA"),
+                pl.col("HORA_RESERVA").dt.hour().alias("HORA_NUM"),
             )
+
 
             today = datetime.now()
 
@@ -244,24 +246,37 @@ def main():
                 )
                 pyg_app.explorer()
 
-                df2 = df.drop(
+                dfD = df.drop(
                     [
-                        "ID_AMBULATORIO",
-                        "FECHA_CREACION_PAC",
                         "FECHA_CONFIRMACION",
-                        "FECHA_ANULACION",
-                        "RESPING_RESERVA",
                         "RESCONF_RESERVA",
+                        "FECHA_ANULACION",
                         "FECREC_RESERVA",
                         "HORA_ATENCION",
-                        "FECHA_NAC_PACIENTE",
                         "MONTO_RESERVA",
                         "FECHA_FICHA",
+                        "ESTADO"
                     ]
                 )
-                st.dataframe(df2)
 
-                csv_data = df2.write_csv()
+                dfP = dfD.to_pandas()
+
+                dfP["FECHA_NAC_PACIENTE"] = pd.to_datetime(dfP["FECHA_NAC_PACIENTE"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
+                #dfP["FECHA_CREACION_PAC"] = pd.to_datetime(dfP["FECHA_CREACION_PAC"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
+
+                #st.write(dfP.shape)
+                dfP = dfP.dropna(subset=["FECHA_NAC_PACIENTE"])
+                #st.write(dfP.shape)
+                #dfP = dfP.dropna(subset=["FECHA_CREACION_PAC"])
+                #st.write(dfP.shape)
+
+
+
+                dfP = pl.from_pandas(dfP)
+                st.dataframe(dfP)
+
+
+                csv_data = dfP.write_csv()
                 st.sidebar.download_button(
                     label="Download CSV",
                     data=csv_data,
