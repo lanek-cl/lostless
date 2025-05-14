@@ -1,19 +1,17 @@
 # train_model.py
-import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.preprocessing import OneHotEncoder
 from scipy.sparse import hstack
 from imblearn.over_sampling import SMOTE
+import pandas as pd
 import joblib
 import time
 
 
-def train(df, drop_columns, sample_size):
-    # Drop specified columns
-    df = df.drop(columns=drop_columns, axis=1)
+def train(df, sample_size):
+    df = df.dropna().dropna(axis=1)
     # Sample for training
     if sample_size != -1:
         # Sample a subset of the data
@@ -46,23 +44,27 @@ def train(df, drop_columns, sample_size):
         X_balanced, y_balanced, test_size=0.2, random_state=42
     )
 
+    y_test_df = y_test.reset_index()
+    y_test_df.columns = ["index", "y_test"]
+    y_test_df.to_csv(f"../data/lostless/y_test_{sample_size}.csv", index=False)
+
     # Train and evaluate model
     clf = RandomForestClassifier(random_state=42, n_jobs=-1)
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
-    print(classification_report(y_test, y_pred))
-
+    report = classification_report(y_test, y_pred)
     # Save model and encoder
-    joblib.dump(clf, "../models/lostless/rf_model.joblib")
-    joblib.dump(encoder, "../models/lostless/encoder.joblib")
+    joblib.dump(clf, f"../models/lostless/rf_model_{sample_size}.joblib")
+    joblib.dump(encoder, f"../models/lostless/encoder_{sample_size}.joblib")
+    return(report)
 
 
 def main():
     # Load dataset
-    df = pd.read_csv("../data.csv")
-    df = df.dropna().dropna(axis=1)
+    df = pd.read_csv("../data/lostless/data.csv")
     start = time.time()
-    train(df, ["ESTADO"], 100000)
+    report = train(df, 300000)
+    print(report)
     stop = time.time()
     print(f"Training time: {stop - start:.2f} seconds")
 
