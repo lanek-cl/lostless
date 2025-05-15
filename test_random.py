@@ -7,17 +7,12 @@ import joblib
 import time
 
 def test_random(df, sample_size):
-    df = df.dropna().dropna(axis=1)
     # Load saved model and encoder
-    clf = joblib.load(f"../models/lostless/rf_model_{sample_size}.joblib")
-    encoder = joblib.load(f"../models/lostless/encoder_{sample_size}.joblib")
-
-    dfi = pd.read_csv(f"../data/lostless/y_test_{sample_size}.csv")
-    indices = dfi["index"].tolist()
-    dfTest = df.iloc[indices]
-
+    clf = joblib.load(f"../lostless_data/models/rf_model_{sample_size}.joblib")
+    encoder = joblib.load(f"../lostless_data/models/encoder_{sample_size}.joblib")
+  
     # Select random row
-    row = dfTest.sample(n=1, random_state=1).copy()
+    row = df.sample(n=1, random_state=1).copy()
     
     # Downcast types
     for col in row.select_dtypes(include=["int"]).columns:
@@ -41,7 +36,8 @@ def test_random(df, sample_size):
 
 def main():
     # Load dataset
-    df = pd.read_csv("../data/lostless/data.csv")
+    df = pd.read_csv("../lostless_data/data/data.csv")
+    df = df.dropna().dropna(axis=1)
     start = time.time()
     labels, result = test_random(df, 100000)
     print(labels, result)
