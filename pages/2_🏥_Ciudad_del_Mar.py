@@ -243,7 +243,13 @@ def filter_data(df):
                     "HORA_ATENCION",
                     "MONTO_RESERVA",
                     "FECHA_FICHA",
-                    "ESTADO"
+                    "ESTADO",
+                    "MES_NAME",
+                    "MES_NUM",
+                    "DIA_NAME",
+                    "DIA_NUM",
+                    "HORA_NUM",
+                    "EDAD"
                 ]
             )
 

@@ -31,14 +31,14 @@ def clear_page(title="Lanek"):
         pass
 
 
-def run_train_in_background(df, sample_size):
-    report = train_model(df=df, sample_size=sample_size)
+def run_train_in_background(df, sample_size, path):
+    report = train_model(df=df, sample_size=sample_size, path=path)
     st.code(report)
     st.write("Training completed.")
 
 
-def get_sizes():
-    all_models = os.listdir("../lostless_data/models/")
+def get_sizes(path):
+    all_models = os.listdir(f"{path}/models/")
     model_sizes = []
     for model in all_models:
         if "rf_model" in model:
@@ -47,23 +47,25 @@ def get_sizes():
     return model_sizes
 
 
-def train_mode(df):
+def train_mode(df, path):
     with st.form("training"):
+        #dataset = st.selectbox("Dataset", ["data_trim.csv", "data.csv"], index=0)
+
         sample_size = st.number_input(
             "Sample Size",
-            min_value=100,
+            min_value=-1,
             max_value=df.shape[0],
             value=10000,
             step=10000,
             key="sample_size",
         )
-        submitted = st.form_submit_button("Train Model")
+        submitted = st.form_submit_button("Train")
         if submitted:
-            model_sizes = get_sizes()
+            model_sizes = get_sizes(path)
             if sample_size not in model_sizes:
                 try:
                     with st.spinner("Training", show_time=True):
-                        thread = threading.Thread(target=run_train_in_background, args=(df, sample_size))
+                        thread = threading.Thread(target=run_train_in_background, args=(df, sample_size, path))
                         thread.start()
                     st.info("Training running in background")
                 except Exception as e:
@@ -72,17 +74,17 @@ def train_mode(df):
                 st.info("Model of that size already exists")
 
 
-def report_mode():
+def report_mode(path):
     with st.form("testing"):
-        model_sizes = get_sizes()
+        model_sizes = get_sizes(path)
         sample_size = st.selectbox(
             "Model Size",
             model_sizes[::-1],
         )
         
-        submitted = st.form_submit_button("Model Report")
+        submitted = st.form_submit_button("Report")
         if submitted:
-            report_path = f"../lostless_data/reports/classification_report_{sample_size}.txt"
+            report_path = f"{path}/reports/classification_report_{sample_size}.txt"
             with st.spinner("Testing...", show_time=True):
                 try:
                     with open(report_path, "r") as file:
@@ -92,9 +94,9 @@ def report_mode():
                     st.info(f"No report found")
                 st.success("Reporting finished!")
 
-def predict_mode(df):
+def predict_mode(df, path):
     with st.form("testing"):
-        model_sizes = get_sizes()
+        model_sizes = get_sizes(path)
         sample_size = st.selectbox(
             "Model Size",
             model_sizes[::-1],
@@ -102,30 +104,14 @@ def predict_mode(df):
 
         #data = {col: np.random.choice(df[col].values) for col in df.columns}
         #del data["ASISTIDA"]
-        data = df.sample(n=1, random_state=1).copy()
+        #df0 = df[df["EDAD"] != 3]
+        data = df.sample(n=1, random_state=sample_size).copy()
         real = data["ASISTIDA"].tolist()[0]
         data = data.drop(columns=["ASISTIDA"])
         data = data.to_dict(orient="records")[0]
 
-        
-
         editable_data = {}
-        #for key, value in data.items():
-        #    if isinstance(value, int) or isinstance(value, np.int64):
-        #        editable_data[key] = st.number_input(key, value=value)
-        #    elif isinstance(value, bool):
-        #        editable_data[key] = st.checkbox(key, value=value)
-        #    elif isinstance(value, float):
-        #        editable_data[key] = st.number_input(key, value=value, format="%.2f")
-        #    elif key.startswith("FECHA") or "FECHA" in key:
-        #        editable_data[key] = st.date_input(key, value=pd.to_datetime(value).date())
-        #    elif key.startswith("HORA") or "HORA" in key:
-        #        editable_data[key] = st.time_input(key, value=pd.to_datetime(value).time())
-        #    else:
-        #        editable_data[key] = st.text_input(key, value=value)
-
-
-        num_cols = 5
+        num_cols = 4
         cols = st.columns(num_cols)
         for i, (key, value) in enumerate(data.items()):
             # Select the column
@@ -137,7 +123,7 @@ def predict_mode(df):
                 elif isinstance(value, bool):
                     editable_data[key] = st.checkbox(key, value=value)
                 elif isinstance(value, float):
-                    editable_data[key] = st.number_input(key, value=value, format="%.2f")
+                    editable_data[key] = st.number_input(key, value=int(value), step=1, min_value=0)
                 elif key.startswith("FECHA") or "FECHA" in key:
                     editable_data[key] = st.date_input(key, value=pd.to_datetime(value).date())
                 elif key.startswith("HORA") or "HORA" in key:
@@ -146,35 +132,41 @@ def predict_mode(df):
                     editable_data[key] = st.text_input(key, value=value)
 
         
-        submitted = st.form_submit_button("Predict Row")
+        submitted = st.form_submit_button("Predict")
         if submitted:
-            #st.json(editable_data)
             row = pd.DataFrame([editable_data])
-            #st.write(row)
             
             with st.spinner("Predicting...", show_time=True):
-                labels = test_row(row=row, sample_size=sample_size)             
-                st.code(labels+f" | Correct: {real}")
-                st.success("Prediction finished!")
+                predicted = test_row(row=row, sample_size=sample_size, path=path)             
+                st.code(f"Predicted: {predicted} | Correct: {real}")
+                if predicted == real:
+                    st.success("Prediction successful!")
+                else:
+                    st.error("Prediction failed!")
 
 
 def main():
     clear_page("Train")
     st.title("Data trainer")
 
-    model_sizes = get_sizes()
     df = None
-    upload = st.sidebar.toggle("Upload Data?")
 
-    if upload:
-        # File uploader
-        uploaded_file = st.sidebar.file_uploader("Upload an CSV file", type=["csv"])
-        if uploaded_file:
-            df = pd.read_csv(uploaded_file)
-            df = df.dropna().dropna(axis=1)
-    else:
-        df = pd.read_csv("../lostless_data/data/data.csv")
-        df = df.dropna().dropna(axis=1)
+    #upload = st.sidebar.toggle("Upload Data?")
+    #if upload:
+    #    # File uploader
+    #    uploaded_file = st.sidebar.file_uploader("Upload an CSV file", type=["csv"])
+    #    if uploaded_file:
+    #        df = pd.read_csv(uploaded_file)
+    #        df = df.dropna().dropna(axis=1)
+
+    dataset = st.sidebar.selectbox("Dataset", ["New", "Old"], index=0)
+    if dataset == "New":
+        path = "../lostless_data"
+    elif dataset == "Old":
+        path = "../lostless_data_old"
+
+    df = pd.read_csv(f"{path}/data/data.csv")
+    df = df.dropna().dropna(axis=1)
 
     
     if df is not None:
@@ -183,13 +175,13 @@ def main():
             ["Predict", "Report", "Train"],
         )
         if mode == "Train":
-            train_mode(df)
+            train_mode(df, path)
 
         elif mode == "Report":
-            report_mode()
+            report_mode(path)
         
         elif mode == "Predict":
-            predict_mode(df)
+            predict_mode(df, path)
                  
 
 

@@ -10,7 +10,7 @@ import joblib
 import time
 
 
-def train_model(df, sample_size):
+def train_model(df, sample_size, path):
     # Sample for training
     if sample_size != -1:
         # Sample a subset of the data
@@ -51,17 +51,18 @@ def train_model(df, sample_size):
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
     # Save model and encoder
-    joblib.dump(clf, f"../lostless_data/models/rf_model_{sample_size}.joblib", compress=("zlib", 3))
-    joblib.dump(encoder, f"../lostless_data/encoders/encoder_{sample_size}.joblib", compress=("zlib", 3))
+    joblib.dump(clf, f"{path}/models/rf_model_{sample_size}.joblib", compress=("zlib", 3))
+    joblib.dump(encoder, f"{path}/encoders/encoder_{sample_size}.joblib", compress=("zlib", 3))
     report = classification_report(y_test, y_pred)
-    with open(f"../lostless_data/reports/classification_report_{sample_size}.txt", "w") as file:
+    with open(f"{path}/reports/classification_report_{sample_size}.txt", "w") as file:
         file.write(report)
     return(report)
 
 
 def main():
     # Load dataset
-    df = pd.read_csv("../lostless_data/data/data.csv")
+    path = "../lostless_data"
+    df = pd.read_csv(f"{path}/data/data.csv")
     df = df.dropna().dropna(axis=1)
     start = time.time()
     report = train_model(df, -1)

@@ -6,10 +6,10 @@ from scipy.sparse import hstack
 import joblib
 import time
 
-def test_random(df, sample_size):
+def test_random(df, sample_size, path):
     # Load saved model and encoder
-    clf = joblib.load(f"../lostless_data/models/rf_model_{sample_size}.joblib")
-    encoder = joblib.load(f"../lostless_data/encoders/encoder_{sample_size}.joblib")
+    clf = joblib.load(f"{path}/models/rf_model_{sample_size}.joblib")
+    encoder = joblib.load(f"{path}/encoders/encoder_{sample_size}.joblib")
   
     # Select random row
     row = df.sample(n=1, random_state=1).copy()
@@ -33,10 +33,10 @@ def test_random(df, sample_size):
     result = "Correct" if y_true == y_pred[0] else "Incorrect"
     return labels, result
 
-def test_row(row, sample_size):
+def test_row(row, sample_size, path):
     # Load saved model and encoder
-    clf = joblib.load(f"../lostless_data/models/rf_model_{sample_size}.joblib")
-    encoder = joblib.load(f"../lostless_data/encoders/encoder_{sample_size}.joblib")
+    clf = joblib.load(f"{path}/models/rf_model_{sample_size}.joblib")
+    encoder = joblib.load(f"{path}/encoders/encoder_{sample_size}.joblib")
   
     # Select random row
     #row = df.sample(n=1, random_state=1).copy()
@@ -56,17 +56,19 @@ def test_row(row, sample_size):
 
     # Predict
     y_pred = clf.predict(X_input)
-    labels = f"Predicted: {y_pred[0]}"
+    
+    labels = y_pred[0]
     #result = "Correct" if y_true == y_pred[0] else "Incorrect"
     return labels
 
 
 def main():
     # Load dataset
-    df = pd.read_csv("../lostless_data/data/data.csv")
+    path = "../lostless_data"
+    df = pd.read_csv(f"{path}/data/data.csv")
     df = df.dropna().dropna(axis=1)
     start = time.time()
-    labels, result = test_random(df, 100000)
+    labels, result = test_random(df, 100000, path)
     print(labels, result)
     stop = time.time()
     print(f"Testing time: {stop - start:.2f} seconds")
