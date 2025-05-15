@@ -9,7 +9,7 @@ import time
 def test_random(df, sample_size):
     # Load saved model and encoder
     clf = joblib.load(f"../lostless_data/models/rf_model_{sample_size}.joblib")
-    encoder = joblib.load(f"../lostless_data/models/encoder_{sample_size}.joblib")
+    encoder = joblib.load(f"../lostless_data/encoders/encoder_{sample_size}.joblib")
   
     # Select random row
     row = df.sample(n=1, random_state=1).copy()
