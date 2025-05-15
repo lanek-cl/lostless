@@ -11,11 +11,13 @@ import time
 
 
 def train(df, sample_size):
-    df = df.dropna().dropna(axis=1)
     # Sample for training
     if sample_size != -1:
         # Sample a subset of the data
         df = df.sample(n=sample_size, random_state=42)
+    
+    else:
+        sample_size = df.shape[0]
 
     # Downcast numerical types
     for col in df.select_dtypes(include=["int"]).columns:
@@ -38,32 +40,31 @@ def train(df, sample_size):
     # Use SMOTE to balance the classes
     smote = SMOTE(random_state=42)
     X_balanced, y_balanced = smote.fit_resample(X_combined, y)
-
+  
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(
         X_balanced, y_balanced, test_size=0.2, random_state=42
     )
 
-    y_test_df = y_test.reset_index()
-    y_test_df.columns = ["index", "y_test"]
-    y_test_df.to_csv(f"../data/lostless/y_test_{sample_size}.csv", index=False)
-
     # Train and evaluate model
     clf = RandomForestClassifier(random_state=42, n_jobs=-1)
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
-    report = classification_report(y_test, y_pred)
     # Save model and encoder
-    joblib.dump(clf, f"../models/lostless/rf_model_{sample_size}.joblib")
-    joblib.dump(encoder, f"../models/lostless/encoder_{sample_size}.joblib")
+    joblib.dump(clf, f"../lostless_data/models/rf_model_{sample_size}.joblib")
+    joblib.dump(encoder, f"../lostless_data/models/encoder_{sample_size}.joblib")
+    report = classification_report(y_test, y_pred)
+    with open(f"../lostless_data/reports/classification_report_{sample_size}.txt", "w") as file:
+        file.write(report)
     return(report)
 
 
 def main():
     # Load dataset
-    df = pd.read_csv("../data/lostless/data.csv")
+    df = pd.read_csv("../lostless_data/data/data.csv")
+    df = df.dropna().dropna(axis=1)
     start = time.time()
-    report = train(df, 300000)
+    report = train(df, -1)
     print(report)
     stop = time.time()
     print(f"Training time: {stop - start:.2f} seconds")
