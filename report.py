@@ -19,7 +19,7 @@ def create_report(df, sample_size):
 
     # Load the saved model and encoder
     model_path = f"../lostless_data/models/rf_model_{sample_size}.joblib"
-    encoder_path = f"../lostless_data/models/encoder_{sample_size}.joblib"
+    encoder_path = f"../lostless_data/encoders/encoder_{sample_size}.joblib"
     clf = joblib.load(model_path)
     encoder = joblib.load(encoder_path)
 
