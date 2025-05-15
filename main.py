@@ -41,12 +41,12 @@ def clear_page(title="GSP"):
         pass
 
 
-clear_page("Procesar")
+clear_page("Lostless")
 
 
 def main():
 
-    st.write("# ¡Bienvenido/a a EEG Graph Classification! 👀👋")
+    st.write("# ¡Bienvenido/a a Lostless! 👀👋")
 
     st.markdown(
         """

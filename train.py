@@ -10,7 +10,7 @@ import joblib
 import time
 
 
-def train(df, sample_size):
+def train_model(df, sample_size):
     # Sample for training
     if sample_size != -1:
         # Sample a subset of the data
@@ -64,7 +64,7 @@ def main():
     df = pd.read_csv("../lostless_data/data/data.csv")
     df = df.dropna().dropna(axis=1)
     start = time.time()
-    report = train(df, -1)
+    report = train_model(df, -1)
     print(report)
     stop = time.time()
     print(f"Training time: {stop - start:.2f} seconds")

@@ -5,3 +5,5 @@ plotly
 pandas
 pygwalker
 polars
+scikit-learn
+imblearn
