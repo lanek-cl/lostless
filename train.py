@@ -51,8 +51,8 @@ def train(df, sample_size):
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
     # Save model and encoder
-    joblib.dump(clf, f"../lostless_data/models/rf_model_{sample_size}.joblib")
-    joblib.dump(encoder, f"../lostless_data/models/encoder_{sample_size}.joblib")
+    joblib.dump(clf, f"../lostless_data/models/rf_model_{sample_size}.joblib", compress=("zlib", 3))
+    joblib.dump(encoder, f"../lostless_data/encoders/encoder_{sample_size}.joblib", compress=("zlib", 3))
     report = classification_report(y_test, y_pred)
     with open(f"../lostless_data/reports/classification_report_{sample_size}.txt", "w") as file:
         file.write(report)
