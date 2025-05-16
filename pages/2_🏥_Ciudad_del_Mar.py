@@ -233,6 +233,7 @@ def filter_data(df):
                 dataset=df, default_tab="data", appearance="light"
             )
             pyg_app.explorer()
+            #st.write(df.columns)
 
             dfD = df.drop(
                 [
@@ -249,19 +250,31 @@ def filter_data(df):
                     "DIA_NAME",
                     "DIA_NUM",
                     "HORA_NUM",
-                    "EDAD"
+                    "EDAD",
+                    "FECHA_NAC_PACIENTE",
+                    "FECHA_CREACION_PAC",
+                    "HORA_RESERVA",
                 ]
             )
 
-            dfP = dfD.to_pandas()
+            #dfP = dfD.to_pandas()
 
-            dfP["FECHA_NAC_PACIENTE"] = pd.to_datetime(dfP["FECHA_NAC_PACIENTE"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
+            #dfP["FECHA_NAC_PACIENTE"] = pd.to_datetime(dfP["FECHA_NAC_PACIENTE"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
 
-            dfP = dfP.dropna(subset=["FECHA_NAC_PACIENTE"])
-            dfP = pl.from_pandas(dfP)
+            #dfP = dfP.dropna(subset=["FECHA_NAC_PACIENTE"])
+            #dfP = pl.from_pandas(dfP)
             #st.dataframe(dfP)
 
-            csv_data = dfP.write_csv()
+            dfD = dfD.drop_nulls()
+
+            pyg_app = StreamlitRenderer(
+                dataset=dfD, default_tab="data", appearance="light"
+            )
+            pyg_app.explorer()
+
+            dfD.write_csv(f"../lostless_data/data/data.csv")
+            csv_data = dfD.write_csv()
+            
             st.sidebar.download_button(
                 label="Download Filtered CSV",
                 data=csv_data,

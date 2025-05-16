@@ -89,7 +89,10 @@ def report_mode(path):
                 try:
                     with open(report_path, "r") as file:
                         report = file.read()
-                        st.code(report)
+                    st.code(report)
+                    df = pd.read_csv(f"{path}/weights/weight_{sample_size}.csv")
+                    st.dataframe(df)
+                    
                 except Exception as e:
                     st.info(f"No report found")
                 st.success("Reporting finished!")
@@ -159,17 +162,23 @@ def main():
     #        df = pd.read_csv(uploaded_file)
     #        df = df.dropna().dropna(axis=1)
 
-    dataset = st.sidebar.selectbox("Dataset", ["New", "Old"], index=0)
-    if dataset == "New":
-        path = "../lostless_data"
+    dataset = st.sidebar.selectbox("Dataset", ["CDM", "Old"], index=0)
+    if dataset == "CDM":
+        path = "../lostless_data_CDM"
     elif dataset == "Old":
         path = "../lostless_data_old"
+    else:
+        path = "../lostless_data"
 
     df = pd.read_csv(f"{path}/data/data.csv")
     df = df.dropna().dropna(axis=1)
 
     
     if df is not None:
+        os.makedirs(f"{path}/models", exist_ok=True)
+        os.makedirs(f"{path}/encoders", exist_ok=True)
+        os.makedirs(f"{path}/reports", exist_ok=True)
+        os.makedirs(f"{path}/weights", exist_ok=True)
         mode = st.sidebar.selectbox(
             "Option",
             ["Predict", "Report", "Train"],
