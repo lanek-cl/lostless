@@ -1,13 +1,7 @@
 # train_model.py
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report
-from sklearn.preprocessing import OneHotEncoder
-from scipy.sparse import hstack
-from imblearn.over_sampling import SMOTE
-import pandas as pd
-import joblib
 import time
+
+import joblib
 
 
 def compress_models(sample_size):
@@ -19,6 +13,7 @@ def compress_models(sample_size):
 
     joblib.dump(clf, model_path, compress=("zlib", 3))
     joblib.dump(encoder, encoder_path, compress=("zlib", 3))
+
 
 def main():
     start = time.time()

@@ -8,19 +8,15 @@
 @contact : lucas.cortes@lanek.cl.
 """
 
-import polars as pl
-import pandas as pd
-import numpy as np
-import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
-import plotly.io as pio
-from datetime import datetime, date
 import re
-import time
-import pygwalker as pyg
-from pygwalker.api.streamlit import StreamlitRenderer
+from datetime import datetime
 
+import plotly.express as px
+import plotly.graph_objects as go
+import plotly.io as pio
+import polars as pl
+import streamlit as st
+from pygwalker.api.streamlit import StreamlitRenderer
 
 pio.templates.default = "plotly"
 pio.templates[pio.templates.default].layout.colorway = (
@@ -151,12 +147,12 @@ def fix_year(date_str):
         return date_str
     except Exception:
         return None
-    
+
 
 def filter_data(df):
     try:
         # Read CSV file
-        
+
         # Ensure required columns are present
         required_columns = [
             "HORA_ATENCION",
@@ -191,7 +187,6 @@ def filter_data(df):
             .alias("FECHA_NAC_PACIENTE"),
         )
 
-
         # Extract date/time components
         df = df.with_columns(
             pl.col("FECHA_RESERVA").dt.strftime("%B").alias("MES_NAME"),
@@ -200,7 +195,6 @@ def filter_data(df):
             pl.col("FECHA_RESERVA").dt.weekday().alias("DIA_NUM"),
             pl.col("HORA_RESERVA").dt.hour().alias("HORA_NUM"),
         )
-
 
         today = datetime.now()
 
@@ -238,7 +232,6 @@ def filter_data(df):
         st.error(f"Error leyendo el archivo CSV: {e}")
 
 
-
 def main():
     clear_page("CDM")
     st.markdown("# Exploración datos LostLess")
@@ -256,7 +249,7 @@ def main():
 
         if file:
             df = pl.read_csv(file)
-    
+
     else:
         df = pl.read_csv("../lostless_dataset/data/CDM.csv")
 

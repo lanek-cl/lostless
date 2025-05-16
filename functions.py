@@ -8,56 +8,22 @@
 @contact : lucas.cortes@lanek.cl.
 """
 
-import polars as pl
-import pandas as pd
-import numpy as np
-import streamlit as st
-from datetime import datetime
-import re
-from pygwalker.api.streamlit import StreamlitRenderer
 import os
-import sys
-import logging
+import re
+from datetime import datetime
+
 import joblib
-from sklearn.preprocessing import OneHotEncoder
+import pandas as pd
+import polars as pl
+import streamlit as st
+from imblearn.over_sampling import SMOTE
+from pygwalker.api.streamlit import StreamlitRenderer
 from scipy.sparse import hstack
-import time
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
-from scipy.sparse import hstack
-from imblearn.over_sampling import SMOTE
-import pandas as pd
-import joblib
-import time
-# import sys
-# import logging
 
-# # Configure logging
-# logging.basicConfig(
-#     filename="results.log",
-#     filemode="a",  # Append to the file
-#     level=logging.INFO,
-#     format="%(asctime)s - %(levelname)s - %(message)s",
-# )
-
-# # Create a custom stream to redirect print statements
-# class PrintLogger:
-#     def __init__(self, level):
-#         self.level = level
-
-#     def write(self, message):
-#         # Skip empty lines
-#         if message.strip():
-#             self.level(message.strip())
-
-#     def flush(self):
-#         pass  # No need to implement flush for this example
-
-# # Redirect stdout and stderr
-# sys.stdout = PrintLogger(logging.info)
-# sys.stderr = PrintLogger(logging.error)
 
 def make_bool(df, sort, by, name):
     return df.with_columns((df[sort] == by).alias(name))
@@ -83,7 +49,7 @@ def fix_year(date_str):
         return date_str
     except Exception:
         return None
-    
+
 
 def filter_data_cdm(df):
     try:
@@ -129,8 +95,8 @@ def filter_data_cdm(df):
             ).alias("EDAD")
         )
 
-        sort = "ESTADO" 
-        by = "ASISTIDA" 
+        sort = "ESTADO"
+        by = "ASISTIDA"
         df = make_bool(df=df, sort=sort, by=by, name=by)
         columns = df.columns
 
@@ -150,21 +116,20 @@ def filter_data_cdm(df):
             "HORA_NUM",
             "HORA_RESERVA",
             "FECHA_CREACION_PAC",
-            #"FECHA_NAC_PACIENTE",
-            #"EDAD",
+            # "FECHA_NAC_PACIENTE",
+            # "EDAD",
         ]
-        cols2drop = st.multiselect("Columns to drop", options=columns, default=dropDefault)
-
+        cols2drop = st.multiselect(
+            "Columns to drop", options=columns, default=dropDefault
+        )
 
         df = df.drop(cols2drop)
         df = df.drop_nulls()
         if "FECHA_NAC_PACIENTE" in df.columns:
             filter_date = datetime(2022, 2, 4, 0, 0, 0)
             df = df.filter(pl.col("FECHA_NAC_PACIENTE") != filter_date)
-        
-        pyg_app = StreamlitRenderer(
-            dataset=df, default_tab="data", appearance="light"
-        )
+
+        pyg_app = StreamlitRenderer(dataset=df, default_tab="data", appearance="light")
         pyg_app.explorer()
 
         name = st.sidebar.text_input("Save name", "New")
@@ -173,6 +138,7 @@ def filter_data_cdm(df):
             save_csv(df, path)
     except Exception as e:
         st.error(f"Error leyendo el archivo CSV: {e}")
+
 
 def filter_data_clc(dfe, dfp):
     try:
@@ -201,23 +167,18 @@ def filter_data_clc(dfe, dfp):
             ]
         )
 
-        sort = "ESTADO_ULTIMO" 
+        sort = "ESTADO_ULTIMO"
         by = "ASISTIDA"
         df = make_bool(df=df, sort=sort, by=by, name=by)
         columns = df.columns
 
-        dropDefault = [
-            "ESTADO_ULTIMO",
-            "MES",
-            "DIA",
-            "HORA"
-        ]
-        cols2drop = st.multiselect("Columns to drop", options=columns, default=dropDefault)
+        dropDefault = ["ESTADO_ULTIMO", "MES", "DIA", "HORA"]
+        cols2drop = st.multiselect(
+            "Columns to drop", options=columns, default=dropDefault
+        )
         df = df.drop(cols2drop)
         df = df.drop_nulls()
-        pyg_app = StreamlitRenderer(
-            dataset=df, default_tab="data", appearance="light"
-        )
+        pyg_app = StreamlitRenderer(dataset=df, default_tab="data", appearance="light")
         pyg_app.explorer()
 
         name = st.sidebar.text_input("Save name", "New")
@@ -233,7 +194,7 @@ def test_row(row, sample_size, path):
     # Load saved model and encoder
     clf = joblib.load(f"{path}/models/rf_model_{sample_size}.joblib")
     encoder = joblib.load(f"{path}/encoders/encoder_{sample_size}.joblib")
-    
+
     # Downcast types
     for col in row.select_dtypes(include=["int"]).columns:
         row[col] = pd.to_numeric(row[col], downcast="integer")
@@ -241,17 +202,17 @@ def test_row(row, sample_size, path):
         row[col] = pd.to_numeric(row[col], downcast="float")
 
     # Prepare input
-    X = row #row.drop(columns=["ASISTIDA"])
-    #y_true = row["ASISTIDA"].values[0]
+    X = row  # row.drop(columns=["ASISTIDA"])
+    # y_true = row["ASISTIDA"].values[0]
     encoded_cat = encoder.transform(X.select_dtypes(include=["object"]))
     numerical = X.select_dtypes(include=["number"]).to_numpy()
     X_input = hstack([numerical, encoded_cat])
 
     # Predict
     y_pred = clf.predict(X_input)
-    
+
     labels = y_pred[0]
-    #result = "Correct" if y_true == y_pred[0] else "Incorrect"
+    # result = "Correct" if y_true == y_pred[0] else "Incorrect"
     return labels
 
 
@@ -260,10 +221,10 @@ def test_random(df, sample_size, path):
     # Load saved model and encoder
     clf = joblib.load(f"{path}/models/rf_model_{sample_size}.joblib")
     encoder = joblib.load(f"{path}/encoders/encoder_{sample_size}.joblib")
-  
+
     # Select random row
     row = df.sample(n=1, random_state=1).copy()
-    
+
     # Downcast types
     for col in row.select_dtypes(include=["int"]).columns:
         row[col] = pd.to_numeric(row[col], downcast="integer")
@@ -293,9 +254,9 @@ def train_model(sample_size, path):
     print(f"Dataset loaded with shape: {df.shape}")
 
     # Drop missing values
-    #print("Dropping rows and columns with missing values...")
-    #df = df.dropna().dropna(axis=1)
-    #print(f"Data after dropping missing values: {df.shape}")
+    # print("Dropping rows and columns with missing values...")
+    # df = df.dropna().dropna(axis=1)
+    # print(f"Data after dropping missing values: {df.shape}")
 
     # Sample for training
     if sample_size != -1:
@@ -357,8 +318,12 @@ def train_model(sample_size, path):
 
     # Save the model and encoder
     print("Saving the trained model and encoder...")
-    joblib.dump(clf, f"{path}/models/rf_model_{sample_size}.joblib", compress=("zlib", 3))
-    joblib.dump(encoder, f"{path}/encoders/encoder_{sample_size}.joblib", compress=("zlib", 3))
+    joblib.dump(
+        clf, f"{path}/models/rf_model_{sample_size}.joblib", compress=("zlib", 3)
+    )
+    joblib.dump(
+        encoder, f"{path}/encoders/encoder_{sample_size}.joblib", compress=("zlib", 3)
+    )
     print("Model and encoder saved.")
 
     # Save classification report
@@ -377,28 +342,29 @@ def train_model(sample_size, path):
     importances = clf.feature_importances_
 
     print("Aggregating feature importances...")
-    importance_df = pd.DataFrame({
-        'Feature': feature_names,
-        'Weight': importances
-    }).sort_values(by='Weight', ascending=False)
-    #importance_df.to_csv(f"{path}/weights/weights_feature_{sample_size}.csv", index=False)
+    importance_df = pd.DataFrame(
+        {"Feature": feature_names, "Weight": importances}
+    ).sort_values(by="Weight", ascending=False)
+    # importance_df.to_csv(f"{path}/weights/weights_feature_{sample_size}.csv", index=False)
 
     # Map features to original columns
     print("Mapping encoded features to original columns...")
     feature_to_column = {col: col for col in numerical_cols}
     for feature in encoded_feature_names:
-        base_col = next((col for col in X.columns if feature.startswith(col + "_")), feature)
+        base_col = next(
+            (col for col in X.columns if feature.startswith(col + "_")), feature
+        )
         feature_to_column[feature] = base_col
 
-    importance_df['Column'] = importance_df['Feature'].map(feature_to_column)
+    importance_df["Column"] = importance_df["Feature"].map(feature_to_column)
 
     # Aggregate importances
     print("Aggregating importances by original columns...")
     column_importances = (
-        importance_df.groupby('Column')['Weight']
+        importance_df.groupby("Column")["Weight"]
         .sum()
         .reset_index()
-        .sort_values(by='Weight', ascending=False)
+        .sort_values(by="Weight", ascending=False)
     )
     weight_path = f"{path}/weights/weight_{sample_size}.csv"
     column_importances.to_csv(weight_path, index=False)
@@ -406,4 +372,3 @@ def train_model(sample_size, path):
 
     print("Training process complete.")
     return report
-

@@ -1,7 +1,8 @@
 # train_model.py
-import time
-import sys
 import logging
+import sys
+import time
+
 from functions import train_model
 
 # Configure logging
@@ -11,6 +12,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
+
 
 # Create a custom stream to redirect print statements
 class PrintLogger:
@@ -24,6 +26,7 @@ class PrintLogger:
 
     def flush(self):
         pass  # No need to implement flush for this example
+
 
 # Redirect stdout and stderr
 sys.stdout = PrintLogger(logging.info)

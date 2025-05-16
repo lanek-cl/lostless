@@ -1,13 +1,14 @@
 import os
-import streamlit as st
-import pandas as pd
-import threading
-import numpy as np
-import polars as pl
-from functions import filter_data_cdm, filter_data_clc, test_row
 import subprocess
-from pathlib import Path
 import time
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import polars as pl
+import streamlit as st
+
+from functions import filter_data_cdm, filter_data_clc, test_row
 
 
 def run_background_command(command):
@@ -45,9 +46,9 @@ def clear_page(title="Lanek"):
 
 
 # def run_train_in_background(df, sample_size, path):
-    # report = train_model(df=df, sample_size=sample_size, path=path)
-    # st.code(report)
-    # st.write("Training completed.")
+# report = train_model(df=df, sample_size=sample_size, path=path)
+# st.code(report)
+# st.write("Training completed.")
 
 
 def get_sizes(path):
@@ -69,7 +70,10 @@ def get_paths():
     model_sizes.sort()
     return model_sizes
 
-def display_log_file(file_path, lines_to_display=100, refresh_interval=1, reverse=False):
+
+def display_log_file(
+    file_path, lines_to_display=100, refresh_interval=1, reverse=False
+):
     placeholder = st.empty()
 
     while True:
@@ -86,8 +90,8 @@ def display_log_file(file_path, lines_to_display=100, refresh_interval=1, revers
 
         # Display the lines
         with placeholder.container():
-            #unique_key = str(uuid.uuid4())
-            #st.text_area("Log Content", "".join(lines), height=600, key=unique_key)
+            # unique_key = str(uuid.uuid4())
+            # st.text_area("Log Content", "".join(lines), height=600, key=unique_key)
             st.code("".join(lines), height=600)
 
         # Wait for the specified refresh interval
@@ -97,8 +101,8 @@ def display_log_file(file_path, lines_to_display=100, refresh_interval=1, revers
 def train_mode(path):
     df = pd.read_csv(f"{path}/data/data.csv")
     df = df.dropna().dropna(axis=1)
-    #with st.form("training"):
-    #dataset = st.selectbox("Dataset", ["data_trim.csv", "data.csv"], index=0)
+    # with st.form("training"):
+    # dataset = st.selectbox("Dataset", ["data_trim.csv", "data.csv"], index=0)
 
     sample_size = st.sidebar.number_input(
         "Sample Size",
@@ -113,8 +117,8 @@ def train_mode(path):
         model_sizes = get_sizes(path)
         if sample_size not in model_sizes:
             try:
-                #thread = threading.Thread(target=run_train_in_background, args=(df, sample_size, path))
-                #thread.start()
+                # thread = threading.Thread(target=run_train_in_background, args=(df, sample_size, path))
+                # thread.start()
                 run_background_command(
                     [
                         "conda",
@@ -144,9 +148,9 @@ def report_mode(path):
         "Model Size",
         model_sizes[::-1],
     )
-    
-    #submitted = st.sidebar.button("Report", type="primary")
-    #if submitted:
+
+    # submitted = st.sidebar.button("Report", type="primary")
+    # if submitted:
     report_path = f"{path}/reports/classification_report_{sample_size}.txt"
     with st.spinner("Testing...", show_time=True):
         try:
@@ -174,10 +178,11 @@ def report_mode(path):
 
             # Use components.html to inject the JavaScript
             st.components.v1.html(hide_index_js, height=0)
-            
-        except Exception as e:
+
+        except Exception:
             st.info(f"No report found")
         st.success("Reporting finished!")
+
 
 def predict_mode(path):
     df = pd.read_csv(f"{path}/data/data.csv")
@@ -207,21 +212,28 @@ def predict_mode(path):
                 elif isinstance(value, bool):
                     editable_data[key] = st.checkbox(key, value=value)
                 elif isinstance(value, float):
-                    editable_data[key] = st.number_input(key, value=int(value), step=1, min_value=0)
-                elif (key.startswith("FECHA") or "FECHA" in key) and (key != "FECHA_DE_CITA"):
-                    editable_data[key] = st.date_input(key, value=pd.to_datetime(value).date())
+                    editable_data[key] = st.number_input(
+                        key, value=int(value), step=1, min_value=0
+                    )
+                elif (key.startswith("FECHA") or "FECHA" in key) and (
+                    key != "FECHA_DE_CITA"
+                ):
+                    editable_data[key] = st.date_input(
+                        key, value=pd.to_datetime(value).date()
+                    )
                 elif key.startswith("HORA") or "HORA" in key:
-                    editable_data[key] = st.time_input(key, value=pd.to_datetime(value).time())
+                    editable_data[key] = st.time_input(
+                        key, value=pd.to_datetime(value).time()
+                    )
                 else:
                     editable_data[key] = st.text_input(key, value=value)
 
-        
         submitted = st.form_submit_button("Predict")
         if submitted:
             row = pd.DataFrame([editable_data])
-            
+
             with st.spinner("Predicting...", show_time=True):
-                predicted = test_row(row=row, sample_size=sample_size, path=path)             
+                predicted = test_row(row=row, sample_size=sample_size, path=path)
                 st.code(f"Predicted: {predicted} | Correct: {real}")
                 if predicted == real:
                     st.success("Prediction successful!")
@@ -235,8 +247,8 @@ def main():
 
     df = None
 
-    #upload = st.sidebar.toggle("Upload Data?")
-    #if upload:
+    # upload = st.sidebar.toggle("Upload Data?")
+    # if upload:
     #    # File uploader
     #    uploaded_file = st.sidebar.file_uploader("Upload an CSV file", type=["csv"])
     #    if uploaded_file:
@@ -254,8 +266,12 @@ def main():
             df = pl.read_csv("../lostless_dataset/data/CDM.csv")
             filter_data_cdm(df)
         elif dataset == "Los Carrera":
-            dfe = pl.read_csv("../lostless_dataset/data/LCE.csv", separator=";", ignore_errors=True)
-            dfp = pl.read_csv("../lostless_dataset/data/LCP.csv", separator=";", ignore_errors=True)
+            dfe = pl.read_csv(
+                "../lostless_dataset/data/LCE.csv", separator=";", ignore_errors=True
+            )
+            dfp = pl.read_csv(
+                "../lostless_dataset/data/LCP.csv", separator=";", ignore_errors=True
+            )
             filter_data_clc(dfe, dfp)
 
     else:
@@ -268,6 +284,6 @@ def main():
         elif mode == "Predict":
             predict_mode(path)
 
-    
+
 if __name__ == "__main__":
     main()

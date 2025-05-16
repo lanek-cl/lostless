@@ -1,6 +1,7 @@
-import streamlit as st
-import pandas as pd
 from io import BytesIO
+
+import pandas as pd
+import streamlit as st
 
 
 def clear_page(title="Lanek"):

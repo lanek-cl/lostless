@@ -1,13 +1,12 @@
 # train_model.py
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report
-from sklearn.preprocessing import OneHotEncoder
-from scipy.sparse import hstack
-from imblearn.over_sampling import SMOTE
-import pandas as pd
-import joblib
 import time
+
+import joblib
+import pandas as pd
+from imblearn.over_sampling import SMOTE
+from scipy.sparse import hstack
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 
 
 def create_report(df, sample_size):
@@ -48,9 +47,10 @@ def create_report(df, sample_size):
     report_path = f"../lostless_data/reports/classification_report_{sample_size}.txt"
     with open(report_path, "w") as file:
         file.write(report)
-    
+
     print(f"Classification report saved to {report_path}")
     return report
+
 
 def main():
     # Load dataset

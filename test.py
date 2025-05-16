@@ -1,6 +1,7 @@
 # predict_random.py
-import time
 import sys
+import time
+
 from functions import test_random
 
 

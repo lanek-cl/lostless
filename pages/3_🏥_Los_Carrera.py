@@ -8,16 +8,13 @@
 @contact : lucas.cortes@lanek.cl.
 """
 
-import math
-import numpy as np
-import matplotlib.pyplot as plt
-import streamlit as st
+
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
-import pygwalker as pyg
-from pygwalker.api.streamlit import StreamlitRenderer
 import polars as pl
+import streamlit as st
+from pygwalker.api.streamlit import StreamlitRenderer
 
 pio.templates.default = "plotly"
 pio.templates[pio.templates.default].layout.colorway = (
@@ -230,9 +227,12 @@ def main():
             dfp = pl.read_csv(patients, separator=";", ignore_errors=True)
 
     else:
-        dfe = pl.read_csv("../lostless_dataset/data/LCE.csv", separator=";", ignore_errors=True)
-        dfp = pl.read_csv("../lostless_dataset/data/LCP.csv", separator=";", ignore_errors=True)
-
+        dfe = pl.read_csv(
+            "../lostless_dataset/data/LCE.csv", separator=";", ignore_errors=True
+        )
+        dfp = pl.read_csv(
+            "../lostless_dataset/data/LCP.csv", separator=";", ignore_errors=True
+        )
 
     if dfe is not None and dfp is not None:
         filter_data(dfe, dfp)
