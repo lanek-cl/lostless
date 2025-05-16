@@ -6,6 +6,8 @@ port = 8503
 
 [theme]
 base = "light"
+font = "monospace"
+primaryColor="#964bff"
 
 
 [logger]
