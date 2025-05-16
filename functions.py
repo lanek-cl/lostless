@@ -9,7 +9,6 @@
 """
 
 import os
-import re
 from datetime import datetime
 
 import joblib
@@ -37,18 +36,6 @@ def save_csv(df, path):
     os.makedirs(f"{path}/weights", exist_ok=True)
     df.write_csv(f"{path}/data/data.csv")
     st.sidebar.success("File saved!")
-
-
-def fix_year(date_str):
-    try:
-        match = re.search(r"(\d{4}|\d{2})", date_str)
-        if match:
-            year = match.group(0)
-            if len(year) == 4 and int(year) < 1000:
-                date_str = date_str.replace(year, str(1900 + int(year)))
-        return date_str
-    except Exception:
-        return None
 
 
 def filter_data_cdm(df):
