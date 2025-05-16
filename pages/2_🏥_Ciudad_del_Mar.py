@@ -233,54 +233,6 @@ def filter_data(df):
                 dataset=df, default_tab="data", appearance="light"
             )
             pyg_app.explorer()
-            #st.write(df.columns)
-
-            dfD = df.drop(
-                [
-                    "FECHA_CONFIRMACION",
-                    "RESCONF_RESERVA",
-                    "FECHA_ANULACION",
-                    "FECREC_RESERVA",
-                    "HORA_ATENCION",
-                    "MONTO_RESERVA",
-                    "FECHA_FICHA",
-                    "ESTADO",
-                    "MES_NAME",
-                    "MES_NUM",
-                    "DIA_NAME",
-                    "DIA_NUM",
-                    "HORA_NUM",
-                    "EDAD",
-                    "FECHA_NAC_PACIENTE",
-                    "FECHA_CREACION_PAC",
-                    "HORA_RESERVA",
-                ]
-            )
-
-            #dfP = dfD.to_pandas()
-
-            #dfP["FECHA_NAC_PACIENTE"] = pd.to_datetime(dfP["FECHA_NAC_PACIENTE"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
-
-            #dfP = dfP.dropna(subset=["FECHA_NAC_PACIENTE"])
-            #dfP = pl.from_pandas(dfP)
-            #st.dataframe(dfP)
-
-            dfD = dfD.drop_nulls()
-
-            pyg_app = StreamlitRenderer(
-                dataset=dfD, default_tab="data", appearance="light"
-            )
-            pyg_app.explorer()
-
-            dfD.write_csv(f"../lostless_data/data/data.csv")
-            csv_data = dfD.write_csv()
-            
-            st.sidebar.download_button(
-                label="Download Filtered CSV",
-                data=csv_data,
-                file_name="data.csv",
-                mime="text/csv",
-            )
 
     except Exception as e:
         st.error(f"Error leyendo el archivo CSV: {e}")
@@ -306,7 +258,7 @@ def main():
             df = pl.read_csv(file)
     
     else:
-        df = pl.read_csv("../lostless_data/data/CDM.csv")
+        df = pl.read_csv("../lostless_dataset/data/CDM.csv")
 
     if df is not None:
         filter_data(df)
