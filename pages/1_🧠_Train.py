@@ -62,7 +62,7 @@ def get_sizes(path):
 
 
 def get_paths():
-    all_models = os.listdir(f"../")
+    all_models = os.listdir("../")
     model_sizes = []
     for model in all_models:
         if "lostless_data_" in model:
@@ -126,7 +126,7 @@ def train_mode(path):
                         "-n",
                         "lostless",
                         "python",
-                        f"train.py",
+                        "train.py",
                         f"{sample_size}",
                         f"{path}",
                     ]
@@ -180,7 +180,7 @@ def report_mode(path):
             st.components.v1.html(hide_index_js, height=0)
 
         except Exception:
-            st.info(f"No report found")
+            st.info("No report found")
         st.success("Reporting finished!")
 
 
