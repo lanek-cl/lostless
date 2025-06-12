@@ -22,7 +22,14 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
+import plotly.express as px
+import plotly.graph_objects as go
+import plotly.io as pio
 
+pio.templates.default = "plotly"
+pio.templates[pio.templates.default].layout.colorway = (
+    px.colors.qualitative.Plotly
+)  # Dark2
 
 def make_bool(df, sort, by, name):
     return df.with_columns((df[sort] == by).alias(name))
@@ -359,3 +366,118 @@ def train_model(sample_size, path):
 
     print("Training process complete.")
     return report
+
+
+def summary(df, sort, var, by, ex=False):
+    if ex and var == "EDAD":
+        df = df.filter(pl.col("EDAD") != 3)
+    summary = (
+        df.group_by(var)
+        .agg(
+            [
+                pl.col(by).sum().alias("Count_True"),
+                (1 - pl.col(by)).sum().alias("Count_False"),
+            ]
+        )
+        .with_columns(
+            [
+                (pl.col("Count_True") / pl.col("Count_False").replace(0, None)).alias(
+                    "True/False Ratio"
+                ),
+                (
+                    pl.col("Count_True")
+                    / (pl.col("Count_True") + pl.col("Count_False"))
+                    * 100
+                ).alias("True/Total Ratio"),
+                (
+                    pl.col("Count_False")
+                    / (pl.col("Count_True") + pl.col("Count_False"))
+                    * 100
+                ).alias("False/Total Ratio"),
+            ]
+        )
+    )
+    summary = summary.drop_nulls()
+    summary = summary.sort(var)
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Bar(
+            x=summary[var],
+            y=summary["Count_True"],
+            name=f"# {by}",
+            # marker_color='green'
+        )
+    )
+
+    fig.add_trace(
+        go.Bar(
+            x=summary[var],
+            y=summary["Count_False"],
+            name=f"# !{by}",
+            # marker_color='red'
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=summary[var],
+            y=summary["True/Total Ratio"],
+            name=f"% {by}",
+            yaxis="y2",
+            mode="lines+markers",
+            line=dict(dash="dash"),
+        )
+    )
+
+    # Line plot for True/Total Ratio on secondary y-axis
+    fig.add_trace(
+        go.Scatter(
+            x=summary[var],
+            y=summary["False/Total Ratio"],
+            name=f"% !{by}",
+            yaxis="y2",
+            mode="lines+markers",
+            line=dict(dash="dash", color="orange"),
+        )
+    )
+
+    fig.update_layout(
+        title=f"{sort}: {by} V/S {var}",
+        xaxis=dict(title=var, tickangle=-30),  # Tilt labels by -45 degrees
+        yaxis=dict(title="Cantidad"),
+        yaxis2=dict(title=f"% {by}", overlaying="y", side="right"),
+        barmode="group",
+        legend=dict(x=0.05, y=0.5),
+        height=600,
+        width=1000,
+    )
+    st.write(fig)
+
+
+def make_bool(df, sort, by, name):
+    return df.with_columns((df[sort] == by).alias(name))
+
+
+def clear_page(title="Lanek"):
+    try:
+        # im = Image.open('assets/logos/favicon.png')
+        st.set_page_config(
+            page_title=title,
+            # page_icon=im,
+            layout="wide",
+        )
+        hide_streamlit_style = """
+            <style>
+                .reportview-container {
+                    margin-top: -2em;
+                }
+                #MainMenu {visibility: hidden;}
+                .stDeployButton {display:none;}
+                footer {visibility: hidden;}
+                #stDecoration {display:none;}
+            </style>
+        """
+        st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+    except Exception:
+        pass

@@ -9,131 +9,11 @@
 """
 
 from datetime import datetime
-
-import plotly.express as px
-import plotly.graph_objects as go
-import plotly.io as pio
 import polars as pl
 import streamlit as st
 from pygwalker.api.streamlit import StreamlitRenderer
 
-pio.templates.default = "plotly"
-pio.templates[pio.templates.default].layout.colorway = (
-    px.colors.qualitative.Plotly
-)  # Dark2
-
-
-def clear_page(title="Lanek"):
-    try:
-        st.set_page_config(
-            page_title=title,
-            layout="wide",
-        )
-        hide_streamlit_style = """
-            <style>
-                .reportview-container {
-                    margin-top: -2em;
-                }
-                #MainMenu {visibility: hidden;}
-                .stDeployButton {display:none;}
-                footer {visibility: hidden;}
-                #stDecoration {display:none;}
-            </style>
-        """
-        st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-    except Exception:
-        pass
-
-
-def summary(df, sort, var, by):
-    if var == "EDAD":
-        df = df.filter(pl.col("EDAD") != 3)
-    summary = (
-        df.group_by(var)
-        .agg(
-            [
-                pl.col(by).sum().alias("Count_True"),
-                (1 - pl.col(by)).sum().alias("Count_False"),
-            ]
-        )
-        .with_columns(
-            [
-                (pl.col("Count_True") / pl.col("Count_False").replace(0, None)).alias(
-                    "True/False Ratio"
-                ),
-                (
-                    pl.col("Count_True")
-                    / (pl.col("Count_True") + pl.col("Count_False"))
-                    * 100
-                ).alias("True/Total Ratio"),
-                (
-                    pl.col("Count_False")
-                    / (pl.col("Count_True") + pl.col("Count_False"))
-                    * 100
-                ).alias("False/Total Ratio"),
-            ]
-        )
-    )
-    summary = summary.drop_nulls()
-    summary = summary.sort(var)
-
-    fig = go.Figure()
-
-    fig.add_trace(
-        go.Bar(
-            x=summary[var],
-            y=summary["Count_True"],
-            name=f"# {by}",
-            # marker_color='green'
-        )
-    )
-
-    fig.add_trace(
-        go.Bar(
-            x=summary[var],
-            y=summary["Count_False"],
-            name=f"# !{by}",
-            # marker_color='red'
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=summary[var],
-            y=summary["True/Total Ratio"],
-            name=f"% {by}",
-            yaxis="y2",
-            mode="lines+markers",
-            line=dict(dash="dash"),
-        )
-    )
-
-    # Line plot for True/Total Ratio on secondary y-axis
-    fig.add_trace(
-        go.Scatter(
-            x=summary[var],
-            y=summary["False/Total Ratio"],
-            name=f"% !{by}",
-            yaxis="y2",
-            mode="lines+markers",
-            line=dict(dash="dash"),
-        )
-    )
-
-    fig.update_layout(
-        title=f"{sort}: {by} V/S {var}",
-        xaxis=dict(title=var, tickangle=-30),  # Tilt labels by -45 degrees
-        yaxis=dict(title="Cantidad"),
-        yaxis2=dict(title=f"% {by}", overlaying="y", side="right"),
-        barmode="group",
-        legend=dict(x=0.05, y=0.5),
-        height=600,
-        width=1000,
-    )
-    st.write(fig)
-
-
-def make_bool(df, sort, by, name):
-    return df.with_columns((df[sort] == by).alias(name))
+from functions import summary, make_bool, clear_page
 
 
 def filter_data(df):
@@ -209,7 +89,7 @@ def filter_data(df):
         # Apply filter and display results
         if st.sidebar.button("Filter", type="primary"):
             df = make_bool(df=df, sort=sort, by=by, name=by)
-            summary(df=df, sort=sort, var=var, by=by)
+            summary(df=df, sort=sort, var=var, by=by, ex=True)
             pyg_app = StreamlitRenderer(
                 dataset=df, default_tab="data", appearance="light"
             )
