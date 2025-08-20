@@ -18,13 +18,16 @@ import streamlit as st
 from imblearn.over_sampling import SMOTE
 from pygwalker.api.streamlit import StreamlitRenderer
 from scipy.sparse import hstack
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
+from xgboost import XGBClassifier 
+from lightgbm import LGBMClassifier
+from catboost import CatBoostClassifier
 
 pio.templates.default = "plotly"
 pio.templates[pio.templates.default].layout.colorway = (
@@ -41,6 +44,7 @@ def save_csv(df, path):
     os.makedirs(f"{path}/encoders", exist_ok=True)
     os.makedirs(f"{path}/reports", exist_ok=True)
     os.makedirs(f"{path}/weights", exist_ok=True)
+    os.makedirs(f"{path}/predictions", exist_ok=True)
     df.write_csv(f"{path}/data/data.csv")
     st.sidebar.success("File saved!")
 
@@ -134,7 +138,7 @@ def filter_data_cdm(df):
         st.error(f"Error leyendo el archivo CSV: {e}")
 
 
-def filter_data_clc(dfe, dfp):
+def filter_data_clc(dfe, dfp, v):
     try:
         # Drop nulls
         dfe = dfe.drop_nulls()
@@ -143,14 +147,27 @@ def filter_data_clc(dfe, dfp):
         dfm = dfm.drop_nulls()
         df = dfm.drop("ID")
 
+        #st.write(df)
+
         # Parse 'FECHA_DE_RESERVA' to datetime
-        df = df.with_columns(
-            [
+        if v == "1":
+            df = df.with_columns(
+                [
+                    pl.col("FECHA_DE_RESERVA").str.strptime(
+                        pl.Datetime, "%d/%m/%Y %H:%M", strict=False
+                    )
+                ]
+            )
+            sort = "ESTADO_ULTIMO"
+            by = "ASISTIDA"
+            df = make_bool(df=df, sort=sort, by=by, name=by)
+        if v == "2":
+            df = df.with_columns(
                 pl.col("FECHA_DE_RESERVA").str.strptime(
-                    pl.Datetime, "%d/%m/%Y %H:%M", strict=False
+                    pl.Datetime, "%Y-%m-%d %H:%M:%S %Z", strict=False
                 )
-            ]
-        )
+            )
+    
 
         # Extract month, day name, and hour
         df = df.with_columns(
@@ -160,13 +177,10 @@ def filter_data_clc(dfe, dfp):
                 pl.col("FECHA_DE_RESERVA").dt.hour().alias("HORA"),
             ]
         )
-
-        sort = "ESTADO_ULTIMO"
-        by = "ASISTIDA"
-        df = make_bool(df=df, sort=sort, by=by, name=by)
+        
         columns = df.columns
 
-        dropDefault = ["ESTADO_ULTIMO", "MES", "DIA", "HORA"]
+        dropDefault = []
         cols2drop = st.multiselect(
             "Columns to drop", options=columns, default=dropDefault
         )
@@ -184,10 +198,10 @@ def filter_data_clc(dfe, dfp):
         st.error(f"Error leyendo el archivo CSV: {e}")
 
 
-def test_row(row, sample_size, path):
+def test_row(row, sample_size, path, model):
     # Load saved model and encoder
-    clf = joblib.load(f"{path}/models/rf_model_{sample_size}.joblib")
-    encoder = joblib.load(f"{path}/encoders/encoder_{sample_size}.joblib")
+    clf = joblib.load(f"{path}/models/rf_model_{model}_{sample_size}.joblib")
+    encoder = joblib.load(f"{path}/encoders/encoder_{model}_{sample_size}.joblib")
 
     # Downcast types
     for col in row.select_dtypes(include=["int"]).columns:
@@ -239,7 +253,7 @@ def test_random(df, sample_size, path):
     return labels, result
 
 
-def train_model(sample_size, path):
+def train_model(sample_size, path, model):
     print("Starting training process...")
 
     # Load dataset
@@ -302,7 +316,24 @@ def train_model(sample_size, path):
 
     # Train the model
     print("Training Random Forest Classifier...")
-    clf = RandomForestClassifier(random_state=42, n_jobs=-1)
+    if model == "RandomForest":
+        clf = RandomForestClassifier(random_state=42, n_jobs=-1)
+
+    elif model == "XGBoost":
+        clf = XGBClassifier(random_state=42, n_jobs=-1, use_label_encoder=False, eval_metric="logloss")
+
+    elif model == "LightGBM":
+        clf = LGBMClassifier(random_state=42, n_jobs=-1)
+
+    elif model == "CatBoost":
+        clf = CatBoostClassifier(random_state=42, verbose=0)
+
+    elif model == "ExtraTrees":
+        clf = ExtraTreesClassifier(random_state=42, n_jobs=-1)
+
+    else:
+        raise ValueError(f"Unknown model: {model}")
+
     clf.fit(X_train, y_train)
     print("Model training complete.")
 
@@ -313,17 +344,17 @@ def train_model(sample_size, path):
     # Save the model and encoder
     print("Saving the trained model and encoder...")
     joblib.dump(
-        clf, f"{path}/models/rf_model_{sample_size}.joblib", compress=("zlib", 3)
+        clf, f"{path}/models/rf_model_{model}_{sample_size}.joblib", compress=("zlib", 3)
     )
     joblib.dump(
-        encoder, f"{path}/encoders/encoder_{sample_size}.joblib", compress=("zlib", 3)
+        encoder, f"{path}/encoders/encoder_{model}_{sample_size}.joblib", compress=("zlib", 3)
     )
     print("Model and encoder saved.")
 
     # Save classification report
     print("Generating classification report...")
     report = classification_report(y_test, y_pred)
-    report_path = f"{path}/reports/classification_report_{sample_size}.txt"
+    report_path = f"{path}/reports/classification_report_{model}_{sample_size}.txt"
     with open(report_path, "w") as file:
         file.write(report)
     print(f"Classification report saved to {report_path}")
@@ -360,7 +391,7 @@ def train_model(sample_size, path):
         .reset_index()
         .sort_values(by="Weight", ascending=False)
     )
-    weight_path = f"{path}/weights/weight_{sample_size}.csv"
+    weight_path = f"{path}/weights/weight_{model}_{sample_size}.csv"
     column_importances.to_csv(weight_path, index=False)
     print(f"Aggregated column importances saved to {weight_path}")
 

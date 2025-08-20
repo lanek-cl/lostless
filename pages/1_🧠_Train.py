@@ -7,6 +7,9 @@ import numpy as np
 import pandas as pd
 import polars as pl
 import streamlit as st
+import concurrent.futures
+from scipy.sparse import hstack
+import joblib
 
 from functions import filter_data_cdm, filter_data_clc, test_row
 
@@ -51,11 +54,11 @@ def clear_page(title="Lanek"):
 # st.write("Training completed.")
 
 
-def get_sizes(path):
+def get_sizes(path, mod):
     all_models = os.listdir(f"{path}/models/")
     model_sizes = []
     for model in all_models:
-        if "rf_model" in model:
+        if "rf_model" in model and mod in model:
             model_sizes.append(int(model.split(".")[0].split("_")[-1]))
     model_sizes.sort()
     return model_sizes
@@ -112,9 +115,11 @@ def train_mode(path):
         step=10000,
         key="sample_size",
     )
+
+    model = st.sidebar.selectbox("Model", ["RandomForest", "XGBoost", "LightGBM", "CatBoost", "ExtraTrees"], index=0)
     submitted = st.sidebar.button("Train", type="primary")
     if submitted:
-        model_sizes = get_sizes(path)
+        model_sizes = get_sizes(path, model)
         if sample_size not in model_sizes:
             try:
                 # thread = threading.Thread(target=run_train_in_background, args=(df, sample_size, path))
@@ -129,6 +134,7 @@ def train_mode(path):
                         "train.py",
                         f"{sample_size}",
                         f"{path}",
+                        f"{model}",
                     ]
                 )
 
@@ -139,7 +145,7 @@ def train_mode(path):
             st.sidebar.warning("A model of that size already exists")
 
     log_file_path = "results.log"
-    display_log_file(log_file_path, 25, 1, True)
+    display_log_file(log_file_path, 25, 1, False)
 
 
 def report_mode(path):
@@ -188,15 +194,22 @@ def predict_mode(path):
     df = pd.read_csv(f"{path}/data/data.csv")
     df = df.dropna().dropna(axis=1)
     with st.form("testing"):
-        model_sizes = get_sizes(path)
-        sample_size = st.selectbox(
+        model = st.sidebar.selectbox(
+            "Model", 
+            ["RandomForest", "XGBoost", "LightGBM", "CatBoost", "ExtraTrees"], 
+            index=0)
+
+        model_sizes = get_sizes(path, model)
+        sample_size = st.sidebar.selectbox(
             "Model Size",
             model_sizes[::-1],
         )
-
         data = df.sample(n=1, random_state=sample_size).copy()
-        real = data["ASISTIDA"].tolist()[0]
-        data = data.drop(columns=["ASISTIDA"])
+        try:
+            data = data.drop(columns=["ASISTIDA"])
+            real = data["ASISTIDA"].tolist()[0]
+        except:
+            real = True
         data = data.to_dict(orient="records")[0]
 
         editable_data = {}
@@ -233,13 +246,89 @@ def predict_mode(path):
             row = pd.DataFrame([editable_data])
 
             with st.spinner("Predicting...", show_time=True):
-                predicted = test_row(row=row, sample_size=sample_size, path=path)
+                predicted = test_row(row=row, sample_size=sample_size, path=path, model=model)
                 st.code(f"Predicted: {predicted} | Correct: {real}")
                 if predicted == real:
                     st.success("Prediction successful!")
                 else:
                     st.error("Prediction failed!")
 
+
+def predict_all(n=-1, seed=42, path="../lostless_data_CLC-V2-MDH"):
+    df = pd.read_csv(f"{path}/data/data.csv")
+    testPath = path
+    if "V2" in path:
+        path = path.replace("V2", "V1")
+
+    model = st.sidebar.selectbox(
+        "Model", 
+        ["RandomForest", "XGBoost", "LightGBM", "CatBoost", "ExtraTrees"], 
+        index=0
+    )
+
+    model_sizes = get_sizes(path, model)
+    sample_size = st.sidebar.selectbox(
+        "Model Size",
+        model_sizes[::-1],
+    )
+    with st.form("testing"):
+        submitted = st.form_submit_button("Predict")
+        if submitted:
+            start = time.perf_counter()
+
+            # Load and subsample data
+            
+            if n != -1:
+                df = df.sample(n=n, random_state=seed)
+
+            # Load largest model + encoder once
+            model_sizes = get_sizes(path, model)
+            sample_size = model_sizes[-1]
+            clf = joblib.load(f"{path}/models/rf_model_{model}_{sample_size}.joblib")
+            encoder = joblib.load(f"{path}/encoders/encoder_{model}_{sample_size}.joblib")
+
+            # --- Preprocess ALL data at once ---
+            for col in df.select_dtypes(include=["int"]).columns:
+                df[col] = pd.to_numeric(df[col], downcast="integer")
+            for col in df.select_dtypes(include=["float"]).columns:
+                df[col] = pd.to_numeric(df[col], downcast="float")
+
+            cat = df.select_dtypes(include=["object"])
+            num = df.select_dtypes(include=["number"])
+
+            encoded_cat = encoder.transform(cat)
+            numerical = num.to_numpy()
+            X_input = hstack([numerical, encoded_cat])
+
+            # --- Predict all at once ---
+            numeric_labels = clf.predict(X_input)
+            probs = clf.predict_proba(X_input)[:, 1]  # probability of class 1 in clf.classes_
+
+            # --- Map numeric labels to 0=False / 1=True ---
+            # Determine which index corresponds to True
+            true_class_index = list(clf.classes_).index(True)
+            labels_01 = (numeric_labels == true_class_index).astype(int)  # 1=True, 0=False
+
+            df["PREDICTED"] = labels_01
+            df["PROBABILITY"] = probs  # probability of True
+
+            counts = df["PREDICTED"].value_counts(normalize=True)
+            true_ratio = counts.get(1, 0.0)
+            false_ratio = counts.get(0, 0.0)
+
+            pred_path = f"{testPath}/predictions"
+            os.makedirs(pred_path, exist_ok=True)
+            output_path = f"{pred_path}/prediction_{model}_{sample_size}.csv"
+            df.to_csv(output_path, index=False)
+
+            end = time.perf_counter()
+            st.write(f"✅ Saved predictions to {output_path}")
+            st.write(f"⏱️ Time taken: {end - start:.2f} seconds")
+            st.write(f"📊 Prediction ratios:")
+            st.write(f"True:  {true_ratio:.2%}")
+            st.write(f"False: {false_ratio:.2%}")
+
+            return df
 
 def main():
     clear_page("Train")
@@ -257,7 +346,7 @@ def main():
 
     mode = st.sidebar.selectbox(
         "Option",
-        ["Train", "Report", "Filter", "Predict"],
+        ["Train", "Report", "Filter", "Predict", "FULL"],
     )
 
     if mode == "Filter":
@@ -266,13 +355,15 @@ def main():
             df = pl.read_csv("../lostless_dataset/data/CDM.csv")
             filter_data_cdm(df)
         elif dataset == "Los Carrera":
+            v = st.sidebar.selectbox("Version", ["1", "2"])
+
             dfe = pl.read_csv(
-                "../lostless_dataset/data/LCE.csv", separator=";", ignore_errors=True
+                f"../lostless_dataset/data/Eventos_v{v}.csv", separator=",", ignore_errors=True
             )
             dfp = pl.read_csv(
-                "../lostless_dataset/data/LCP.csv", separator=";", ignore_errors=True
+                f"../lostless_dataset/data/Pacientes_v{v}.csv", separator=",", ignore_errors=True
             )
-            filter_data_clc(dfe, dfp)
+            filter_data_clc(dfe, dfp, v)
 
     else:
         dataset = st.sidebar.selectbox("Dataset", get_paths(), index=0)
@@ -283,6 +374,8 @@ def main():
             report_mode(path)
         elif mode == "Predict":
             predict_mode(path)
+        elif mode == "FULL":
+            predict_all(-1, 42, path)
 
 
 if __name__ == "__main__":

@@ -109,11 +109,13 @@ def main():
 
     else:
         dfe = pl.read_csv(
-            "../lostless_dataset/data/LCE.csv", separator=";", ignore_errors=True
+            "../lostless_dataset/data/Eventos_v2.csv", separator=",", ignore_errors=True
         )
         dfp = pl.read_csv(
-            "../lostless_dataset/data/LCP.csv", separator=";", ignore_errors=True
+            "../lostless_dataset/data/Pacientes_v2.csv", separator=",", ignore_errors=True
         )
+        
+
 
     if dfe is not None and dfp is not None:
         filter_data(dfe, dfp)

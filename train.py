@@ -36,8 +36,9 @@ sys.stderr = PrintLogger(logging.error)
 def main():
     sample_size = int(sys.argv[1])
     path = sys.argv[2]
+    model = sys.argv[3]
     start = time.time()
-    report = train_model(sample_size, path)
+    report = train_model(sample_size, path, model)
     print(report)
     stop = time.time()
     print(f"Training time: {stop - start:.2f} seconds")

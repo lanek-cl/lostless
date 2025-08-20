@@ -7,3 +7,6 @@ pygwalker
 polars
 scikit-learn
 imblearn
+xgboost
+lightgbm
+catboost
