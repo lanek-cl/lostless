@@ -149,7 +149,8 @@ def train_mode(path):
 
 
 def report_mode(path):
-    model_sizes = get_sizes(path)
+    model = st.sidebar.selectbox("Model", ["RandomForest", "XGBoost", "LightGBM", "CatBoost", "ExtraTrees"], index=0)
+    model_sizes = get_sizes(path, model)
     sample_size = st.sidebar.selectbox(
         "Model Size",
         model_sizes[::-1],
@@ -157,7 +158,7 @@ def report_mode(path):
 
     # submitted = st.sidebar.button("Report", type="primary")
     # if submitted:
-    report_path = f"{path}/reports/classification_report_{sample_size}.txt"
+    report_path = f"{path}/reports/classification_report_{model}_{sample_size}.txt"
     with st.spinner("Testing...", show_time=True):
         try:
             with open(report_path, "r") as file:
