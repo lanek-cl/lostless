@@ -1,36 +1,36 @@
 # train_model.py
-import logging
 import sys
 import time
+from loguru import logger
 
 from functions import train_model
 
-# Configure logging
-logging.basicConfig(
-    filename="results.log",
-    filemode="a",  # Append to the file
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+# Configure loguru to log to a file (append mode)
+logger.add(
+    "results.log",
+    rotation="10 MB",   # Rotate after 10MB, can be time-based too
+    #retention="7 days", # Keep logs for 7 days
+    level="INFO",
+    enqueue=True,
+    backtrace=True,
+    diagnose=True,
+    format="{time:YYYY-MM-DD HH:mm:ss} - {level} - {message}",
 )
 
-
-# Create a custom stream to redirect print statements
-class PrintLogger:
+# Redirect stdout and stderr to loguru
+class StreamToLogger:
     def __init__(self, level):
         self.level = level
 
     def write(self, message):
-        # Skip empty lines
         if message.strip():
             self.level(message.strip())
 
     def flush(self):
-        pass  # No need to implement flush for this example
+        pass
 
-
-# Redirect stdout and stderr
-sys.stdout = PrintLogger(logging.info)
-sys.stderr = PrintLogger(logging.error)
+sys.stdout = StreamToLogger(logger.info)
+sys.stderr = StreamToLogger(logger.error)
 
 
 def main():
